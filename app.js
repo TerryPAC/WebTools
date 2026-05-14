@@ -28,6 +28,7 @@
   const selectionStats = document.getElementById("selectionStats");
 
   const replaceColor = document.getElementById("replaceColor");
+  const hexTextInput = document.getElementById("hexTextInput");
   const rInput = document.getElementById("rInput");
   const gInput = document.getElementById("gInput");
   const bInput = document.getElementById("bInput");
@@ -227,6 +228,7 @@
     const d = ictx.getImageData(bx, by, 1, 1).data;
     pickedColor = { r: d[0], g: d[1], b: d[2] };
     updatePickedUI();
+    drawRectLayer(); // 重新取色时恢复矩形框显示
     refreshSelectionAndHighlight();
   }
 
@@ -362,9 +364,11 @@
   replaceColor.addEventListener("input", () => {
     const rgb = hexToRgb(replaceColor.value);
     if (!rgb) return;
+    const hex = replaceColor.value.toUpperCase();
     rInput.value = String(rgb.r);
     gInput.value = String(rgb.g);
     bInput.value = String(rgb.b);
+    hexTextInput.value = hex;
   });
 
   function onRgbInput() {
@@ -380,10 +384,31 @@
     rInput.value = String(r);
     gInput.value = String(g);
     bInput.value = String(b);
-    replaceColor.value = rgbToHex(r, g, b);
+    const hex = rgbToHex(r, g, b).toUpperCase();
+    replaceColor.value = hex.toLowerCase();
+    hexTextInput.value = hex;
   }
 
   [rInput, gInput, bInput].forEach((el) => el.addEventListener("input", onRgbInput));
+
+  hexTextInput.addEventListener("input", () => {
+    let hex = hexTextInput.value.trim();
+    if (hex.length > 0 && !hex.startsWith("#")) {
+      hex = "#" + hex;
+      hexTextInput.value = hex;
+    }
+    
+    // 只有当输入达到 7 位（# + 6位）时才尝试解析，或者用户手动删除了部分内容
+    if (hex.length === 7) {
+      const rgb = hexToRgb(hex);
+      if (rgb) {
+        rInput.value = String(rgb.r);
+        gInput.value = String(rgb.g);
+        bInput.value = String(rgb.b);
+        replaceColor.value = rgbToHex(rgb.r, rgb.g, rgb.b).toLowerCase();
+      }
+    }
+  });
 
   btnReplace.addEventListener("click", () => {
     if (!selectionMask || !pickedColor || imageWidth === 0) return;
@@ -414,16 +439,14 @@
     }
 
     ictx.putImageData(imgData, 0, 0);
-    if (pickedColor) {
-      refreshSelectionAndHighlight();
-    } else {
-      clearOverlayHighlight();
-      selectionMask = null;
-      selectionCount = 0;
-      selectionStats.textContent = "已选中像素：—";
-    }
+
+    // 隐藏矩形框视觉效果，但 regionRect 数据保留，下次取色时会重新显示
+    rctx.clearRect(0, 0, rectCanvas.width, rectCanvas.height);
+    // 清除高亮，但保留 selectionMask，允许用户修改目标颜色后继续对同一选区再次替换
+    clearOverlayHighlight();
+
     modeHint.textContent =
-      "替换完成。可继续调整容忍度、修改目标颜色后再次替换，或重新取色";
+      "替换完成。可继续修改目标颜色后再次替换，或重新点击图片取色";
   });
 
   btnDownload.addEventListener("click", () => {

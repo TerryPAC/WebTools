@@ -474,74 +474,139 @@ input[type="range"]::-moz-range-thumb {
 /* ─── Color Picker Row ───────────────────────────────────── */
 .color-row {
   display: flex;
-  gap: 0.6rem;
-  align-items: stretch;
-  margin-bottom: 0.65rem;
+  gap: 0.65rem;
+  align-items: flex-start;
+  margin-bottom: 0.75rem;
 }
 
 .color-picker-wrap {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: var(--radius-xs);
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border-input);
   overflow: hidden;
   background: var(--surface-2);
   flex-shrink: 0;
   cursor: pointer;
+  margin-top: 0.2rem;
 }
 
 #replaceColor {
-  width: 60px;
-  height: 60px;
+  width: 70px;
+  height: 70px;
   padding: 0;
   border: none;
   cursor: pointer;
   background: transparent;
-  transform: scale(1.4);
+  transform: scale(1.5);
+}
+
+.color-inputs {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  min-width: 0; /* 确保在 flex 容器中可以缩小 */
+}
+
+.text-input-row {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-xs);
+  background: var(--surface-2);
+  overflow: hidden;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  width: 100%;
+}
+
+.text-input-row:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15);
+}
+
+.input-prefix {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px; /* 稍微缩小一点 */
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  font-family: ui-monospace, "SF Mono", monospace;
+  background: var(--surface-3);
+  border-right: 1px solid var(--border-input);
+  flex-shrink: 0;
+  user-select: none;
+}
+
+#hexTextInput {
+  flex: 1;
+  min-width: 0;
+  padding: 0.4rem 0.5rem;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.8rem;
+  font-family: ui-monospace, "SF Mono", monospace;
+  outline: none;
+}
+
+#hexTextInput:focus-visible {
+  outline: none;
 }
 
 .rgb-grid {
-  flex: 1;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  display: flex;
+  flex-direction: row;
   gap: 0.35rem;
 }
 
 .rgb-grid label {
+  flex: 1;
   display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.15rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-xs);
+  padding: 0 0.2rem;
+  height: 28px;
+  min-width: 0;
 }
 
 .rgb-label {
-  font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 0.03em;
+  font-size: 0.7rem;
+  font-weight: 800;
+  width: 12px;
+  text-align: center;
+  flex-shrink: 0;
 }
 
 .rgb-grid input[type="number"] {
+  flex: 1;
   width: 100%;
-  padding: 0.35rem 0.25rem;
-  border: 1px solid var(--border-input);
-  border-radius: var(--radius-xs);
-  background: var(--surface-2);
+  padding: 0;
+  border: none;
+  background: transparent;
   color: var(--text);
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   font-family: ui-monospace, "SF Mono", monospace;
   font-variant-numeric: tabular-nums;
   text-align: center;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  outline: none;
   -moz-appearance: textfield;
   appearance: textfield;
 }
 
-.rgb-grid input[type="number"]:focus {
-  outline: none;
+.rgb-grid label:focus-within {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15);
+  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.1);
 }
 
 .rgb-grid input[type="number"]::-webkit-inner-spin-button,

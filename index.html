@@ -115,22 +115,28 @@
             </div>
             <div class="color-row">
               <label class="sr-only" for="replaceColor">颜色选择</label>
-              <div class="color-picker-wrap">
+              <div class="color-picker-wrap" title="点击选取颜色">
                 <input type="color" id="replaceColor" value="#00aaff" />
               </div>
-              <div class="rgb-grid">
-                <label>
-                  <span class="rgb-label" style="color:#ff3b30">R</span>
-                  <input type="number" id="rInput" min="0" max="255" value="0" />
-                </label>
-                <label>
-                  <span class="rgb-label" style="color:#34c759">G</span>
-                  <input type="number" id="gInput" min="0" max="255" value="170" />
-                </label>
-                <label>
-                  <span class="rgb-label" style="color:#007AFF">B</span>
-                  <input type="number" id="bInput" min="0" max="255" value="255" />
-                </label>
+              <div class="color-inputs">
+                <div class="text-input-row">
+                  <span class="input-prefix">HEX</span>
+                    <input type="text" id="hexTextInput" placeholder="#00AAFF" maxlength="7" spellcheck="false" autocomplete="off" />
+                </div>
+                <div class="rgb-grid">
+                  <label>
+                    <span class="rgb-label" style="color:#ff3b30">R</span>
+                    <input type="number" id="rInput" min="0" max="255" value="0" />
+                  </label>
+                  <label>
+                    <span class="rgb-label" style="color:#34c759">G</span>
+                    <input type="number" id="gInput" min="0" max="255" value="170" />
+                  </label>
+                  <label>
+                    <span class="rgb-label" style="color:#007AFF">B</span>
+                    <input type="number" id="bInput" min="0" max="255" value="255" />
+                  </label>
+                </div>
               </div>
             </div>
             <button type="button" class="btn btn-primary" id="btnReplace" disabled>
