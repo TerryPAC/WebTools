@@ -1,5 +1,5 @@
 /**
- * 图片取色与颜色替换 — 纯前端 Canvas 实现
+ * 图片取色与颜色替换 — 纯前端 Canvas 实现（支持多图批量）
  */
 (function () {
   "use strict";
@@ -7,13 +7,9 @@
   const fileInput = document.getElementById("fileInput");
   const uploadZone = document.getElementById("uploadZone");
   const uploadHint = document.getElementById("uploadHint");
-  const canvasWrap = document.getElementById("canvasWrap");
-  const imageCanvas = document.getElementById("imageCanvas");
-  const rectCanvas = document.getElementById("rectCanvas");
-  const overlayCanvas = document.getElementById("overlayCanvas");
-  const ictx = imageCanvas.getContext("2d", { willReadFrequently: true });
-  const rctx = rectCanvas.getContext("2d");
-  const octx = overlayCanvas.getContext("2d", { willReadFrequently: true });
+  const imagesGridWrap = document.getElementById("imagesGridWrap");
+  const imagesGrid = document.getElementById("imagesGrid");
+  const globalPlaceholder = document.getElementById("globalPlaceholder");
 
   const btnDrawRect = document.getElementById("btnDrawRect");
   const btnClearRect = document.getElementById("btnClearRect");
@@ -37,47 +33,114 @@
 
   /** @type {{ r: number; g: number; b: number } | null} */
   let pickedColor = null;
-  /** @type {Uint8Array | null} 长度 w*h，1 表示选中 */
-  let selectionMask = null;
-  let selectionCount = 0;
 
-  /** @type {{ x: number; y: number; w: number; h: number } | null} 图像像素坐标 */
-  let regionRect = null;
+  let idCounter = 0;
+  function nextId() {
+    return "img-" + ++idCounter;
+  }
+
+  /**
+   * @typedef {{ x: number; y: number; w: number; h: number }} Rect
+   * @typedef {{
+   *   id: string;
+   *   file: File;
+   *   card: HTMLElement;
+   *   wrap: HTMLElement;
+   *   imageCanvas: HTMLCanvasElement;
+   *   rectCanvas: HTMLCanvasElement;
+   *   overlayCanvas: HTMLCanvasElement;
+   *   ictx: CanvasRenderingContext2D;
+   *   rctx: CanvasRenderingContext2D;
+   *   octx: CanvasRenderingContext2D;
+   *   rects: Rect[];
+   *   selectionMask: Uint8Array | null;
+   *   selectionCount: number;
+   *   width: number;
+   *   height: number;
+   * }} ImageItem
+   */
+
+  /** @type {ImageItem[]} */
+  let images = [];
+  /** @type {string | null} */
+  let activeImageId = null;
 
   let rectDrawMode = false;
   let rectDragging = false;
+  /** @type {ImageItem | null} */
+  let rectDragItem = null;
   /** @type {{ x: number; y: number } | null} */
   let rectDragStart = null;
   /** @type {{ x: number; y: number } | null} */
   let rectDragCurrent = null;
 
   let ignorePickUntil = 0;
-  let imageWidth = 0;
-  let imageHeight = 0;
 
   const HIGHLIGHT = { r: 255, g: 0, b: 128, a: Math.round(0.45 * 255) };
   const MIN_RECT_SIZE = 3;
 
-  function setWrapCursor(mode) {
-    canvasWrap.classList.remove("cursor-pick", "cursor-rect");
-    canvasWrap.classList.add(mode === "rect" ? "cursor-rect" : "cursor-pick");
+  function getActiveItem() {
+    if (!activeImageId) return null;
+    return images.find((i) => i.id === activeImageId) || null;
   }
 
-  function clientToBitmap(clientX, clientY) {
-    const rect = imageCanvas.getBoundingClientRect();
-    const sx = imageCanvas.width / rect.width;
-    const sy = imageCanvas.height / rect.height;
+  function setActiveImage(id) {
+    if (id == null) {
+      activeImageId = null;
+      for (const item of images) {
+        item.card.classList.remove("active");
+      }
+      updateClearRectButton();
+      updateCursors();
+      return;
+    }
+    if (!images.some((i) => i.id === id)) return;
+    activeImageId = id;
+    for (const item of images) {
+      item.card.classList.toggle("active", item.id === id);
+    }
+    updateClearRectButton();
+    updateCursors();
+  }
+
+  function updateGridClass() {
+    imagesGrid.classList.toggle("has-images", images.length > 0);
+  }
+
+  function updateClearRectButton() {
+    const active = getActiveItem();
+    btnClearRect.disabled = !active || active.rects.length === 0;
+  }
+
+  function updateCursors() {
+    for (const item of images) {
+      item.wrap.classList.remove("cursor-pick", "cursor-rect");
+      if (rectDrawMode && item.id === activeImageId) {
+        item.wrap.classList.add("cursor-rect");
+      } else {
+        item.wrap.classList.add("cursor-pick");
+      }
+    }
+  }
+
+  function clientToBitmap(item, clientX, clientY) {
+    const rect = item.imageCanvas.getBoundingClientRect();
+    const sx = item.imageCanvas.width / rect.width;
+    const sy = item.imageCanvas.height / rect.height;
     let bx = Math.floor((clientX - rect.left) * sx);
     let by = Math.floor((clientY - rect.top) * sy);
-    bx = Math.max(0, Math.min(imageCanvas.width - 1, bx));
-    by = Math.max(0, Math.min(imageCanvas.height - 1, by));
+    bx = Math.max(0, Math.min(item.imageCanvas.width - 1, bx));
+    by = Math.max(0, Math.min(item.imageCanvas.height - 1, by));
     return { bx, by };
   }
 
-  function isInRegion(px, py) {
-    if (!regionRect) return true;
-    const r = regionRect;
-    return px >= r.x && px < r.x + r.w && py >= r.y && py < r.y + r.h;
+  /** @param {ImageItem} item @param {number} px @param {number} py */
+  function isInAnyRect(item, px, py) {
+    if (!item.rects.length) return true;
+    for (const r of item.rects) {
+      if (px >= r.x && px < r.x + r.w && py >= r.y && py < r.y + r.h) return true;
+    }
+    return false;
   }
 
   function normalizeRect(x0, y0, x1, y1) {
@@ -88,17 +151,23 @@
     return { x, y, w, h };
   }
 
-  function clampRectToImage(rect) {
+  /** @param {ImageItem} item */
+  function clampRectToImage(item, rect) {
     let { x, y, w, h } = rect;
-    x = Math.max(0, Math.min(x, imageWidth - 1));
-    y = Math.max(0, Math.min(y, imageHeight - 1));
-    w = Math.min(w, imageWidth - x);
-    h = Math.min(h, imageHeight - y);
+    const iw = item.width;
+    const ih = item.height;
+    x = Math.max(0, Math.min(x, iw - 1));
+    y = Math.max(0, Math.min(y, ih - 1));
+    w = Math.min(w, iw - x);
+    h = Math.min(h, ih - y);
     return { x, y, w, h };
   }
 
-  function drawRectLayer() {
-    rctx.clearRect(0, 0, rectCanvas.width, rectCanvas.height);
+  /** @param {ImageItem} item */
+  function drawRectLayer(item) {
+    const rctx = item.rctx;
+    rctx.clearRect(0, 0, item.rectCanvas.width, item.rectCanvas.height);
+
     const drawOne = (rx, ry, rw, rh, preview) => {
       if (rw < 1 || rh < 1) return;
       rctx.save();
@@ -111,10 +180,11 @@
       rctx.restore();
     };
 
-    if (regionRect && regionRect.w >= 1 && regionRect.h >= 1) {
-      drawOne(regionRect.x, regionRect.y, regionRect.w, regionRect.h, false);
+    for (const r of item.rects) {
+      if (r.w >= 1 && r.h >= 1) drawOne(r.x, r.y, r.w, r.h, false);
     }
-    if (rectDragging && rectDragStart && rectDragCurrent) {
+
+    if (rectDragging && rectDragItem === item && rectDragStart && rectDragCurrent) {
       const n = normalizeRect(
         rectDragStart.x,
         rectDragStart.y,
@@ -125,26 +195,24 @@
     }
   }
 
-  function clearOverlayHighlight() {
-    octx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+  /** @param {ImageItem} item */
+  function clearOverlayHighlight(item) {
+    item.octx.clearRect(0, 0, item.overlayCanvas.width, item.overlayCanvas.height);
   }
 
-  /**
-   * 根据当前取色与容忍度计算 mask 并绘制高亮
-   */
-  function refreshSelectionAndHighlight() {
-    clearOverlayHighlight();
-    selectionMask = null;
-    selectionCount = 0;
+  /** @param {ImageItem} item */
+  function refreshSelectionForItem(item) {
+    clearOverlayHighlight(item);
+    item.selectionMask = null;
+    item.selectionCount = 0;
 
-    if (!pickedColor || imageWidth === 0 || imageHeight === 0) {
-      selectionStats.textContent = "已选中像素：—";
+    if (!pickedColor || item.width === 0 || item.height === 0) {
       return;
     }
 
-    const w = imageWidth;
-    const h = imageHeight;
-    const imgData = ictx.getImageData(0, 0, w, h);
+    const w = item.width;
+    const h = item.height;
+    const imgData = item.ictx.getImageData(0, 0, w, h);
     const d = imgData.data;
     const mask = new Uint8Array(w * h);
 
@@ -156,20 +224,9 @@
     const pg = pickedColor.g;
     const pb = pickedColor.b;
 
-    let x0 = 0;
-    let y0 = 0;
-    let x1 = w;
-    let y1 = h;
-    if (regionRect) {
-      x0 = Math.max(0, Math.floor(regionRect.x));
-      y0 = Math.max(0, Math.floor(regionRect.y));
-      x1 = Math.min(w, Math.ceil(regionRect.x + regionRect.w));
-      y1 = Math.min(h, Math.ceil(regionRect.y + regionRect.h));
-    }
-
-    for (let py = y0; py < y1; py++) {
-      for (let px = x0; px < x1; px++) {
-        if (!isInRegion(px, py)) continue;
+    for (let py = 0; py < h; py++) {
+      for (let px = 0; px < w; px++) {
+        if (!isInAnyRect(item, px, py)) continue;
         const i = (py * w + px) * 4;
         const dr = d[i] - pr;
         const dg = d[i + 1] - pg;
@@ -178,20 +235,19 @@
         if (distSq <= maxDistSq) {
           const mi = py * w + px;
           mask[mi] = 1;
-          selectionCount++;
+          item.selectionCount++;
         }
       }
     }
 
-    selectionMask = mask;
-    selectionStats.textContent = `已选中像素：${selectionCount.toLocaleString()}`;
+    item.selectionMask = mask;
 
-    if (selectionCount === 0) return;
+    if (item.selectionCount === 0) return;
 
-    const hi = octx.createImageData(w, h);
+    const hi = item.octx.createImageData(w, h);
     const hd = hi.data;
-    for (let py = y0; py < y1; py++) {
-      for (let px = x0; px < x1; px++) {
+    for (let py = 0; py < h; py++) {
+      for (let px = 0; px < w; px++) {
         const mi = py * w + px;
         if (!mask[mi]) continue;
         const oi = mi * 4;
@@ -201,7 +257,30 @@
         hd[oi + 3] = HIGHLIGHT.a;
       }
     }
-    octx.putImageData(hi, 0, 0);
+    item.octx.putImageData(hi, 0, 0);
+  }
+
+  function refreshAllHighlights() {
+    let total = 0;
+    for (const item of images) {
+      refreshSelectionForItem(item);
+      total += item.selectionCount;
+    }
+    if (!pickedColor || images.length === 0) {
+      selectionStats.textContent = "已选中像素：—";
+    } else {
+      selectionStats.textContent = `已选中像素：${total.toLocaleString()}（${images.length} 张图）`;
+    }
+    updateReplaceButton();
+  }
+
+  function updateReplaceButton() {
+    if (!pickedColor || images.length === 0) {
+      btnReplace.disabled = true;
+      return;
+    }
+    const any = images.some((i) => i.selectionCount > 0);
+    btnReplace.disabled = !any;
   }
 
   function updatePickedUI() {
@@ -221,49 +300,59 @@
         .join("")
         .toUpperCase();
     pickedRgb.textContent = `RGB(${r}, ${g}, ${b})`;
-    btnReplace.disabled = false;
+    updateReplaceButton();
   }
 
-  function pickAt(bx, by) {
-    const d = ictx.getImageData(bx, by, 1, 1).data;
+  /** @param {ImageItem} item */
+  function pickAt(item, bx, by) {
+    const d = item.ictx.getImageData(bx, by, 1, 1).data;
     pickedColor = { r: d[0], g: d[1], b: d[2] };
     updatePickedUI();
-    drawRectLayer(); // 重新取色时恢复矩形框显示
-    refreshSelectionAndHighlight();
+    for (const im of images) {
+      drawRectLayer(im);
+    }
+    refreshAllHighlights();
   }
 
-  function onOverlayClick(e) {
+  /** @param {ImageItem} item */
+  function onOverlayClick(item, e) {
     if (performance.now() < ignorePickUntil) return;
     if (rectDrawMode || rectDragging) return;
-    if (!imageWidth) return;
-    const { bx, by } = clientToBitmap(e.clientX, e.clientY);
-    pickAt(bx, by);
+    if (!item.width) return;
+    setActiveImage(item.id);
+    const { bx, by } = clientToBitmap(item, e.clientX, e.clientY);
+    pickAt(item, bx, by);
   }
 
-  function onOverlayPointerDown(e) {
-    if (!imageWidth) return;
+  /** @param {ImageItem} item */
+  function onOverlayPointerDown(item, e) {
+    if (!item.width) return;
     if (!rectDrawMode) return;
+    if (item.id !== activeImageId) return;
     e.preventDefault();
     rectDragging = true;
-    const p = clientToBitmap(e.clientX, e.clientY);
+    rectDragItem = item;
+    const p = clientToBitmap(item, e.clientX, e.clientY);
     rectDragStart = { x: p.bx, y: p.by };
     rectDragCurrent = { ...rectDragStart };
-    overlayCanvas.setPointerCapture(e.pointerId);
-    drawRectLayer();
+    item.overlayCanvas.setPointerCapture(e.pointerId);
+    drawRectLayer(item);
   }
 
-  function onOverlayPointerMove(e) {
-    if (!rectDragging || !rectDragStart) return;
-    const p = clientToBitmap(e.clientX, e.clientY);
+  /** @param {ImageItem} item */
+  function onOverlayPointerMove(item, e) {
+    if (!rectDragging || rectDragItem !== item || !rectDragStart) return;
+    const p = clientToBitmap(item, e.clientX, e.clientY);
     rectDragCurrent = { x: p.bx, y: p.by };
-    drawRectLayer();
+    drawRectLayer(item);
   }
 
-  function onOverlayPointerUp(e) {
-    if (!rectDragging) return;
+  /** @param {ImageItem} item */
+  function onOverlayPointerUp(item, e) {
+    if (!rectDragging || rectDragItem !== item) return;
     rectDragging = false;
     try {
-      overlayCanvas.releasePointerCapture(e.pointerId);
+      item.overlayCanvas.releasePointerCapture(e.pointerId);
     } catch (_) {}
 
     let committed = false;
@@ -282,12 +371,12 @@
         rectDragCurrent.x,
         rectDragCurrent.y
       );
-      n = clampRectToImage(n);
+      n = clampRectToImage(item, n);
       if (n.w >= MIN_RECT_SIZE && n.h >= MIN_RECT_SIZE) {
-        regionRect = n;
+        item.rects.push(n);
         committed = true;
-        btnClearRect.disabled = false;
-        rectStatus.textContent = `已限定：${n.w}×${n.h} 像素`;
+        rectStatus.textContent = `当前图已 ${item.rects.length} 个限定框`;
+        updateClearRectButton();
       } else {
         rectStatus.textContent = "框选过小，已忽略";
       }
@@ -298,31 +387,35 @@
     }
     rectDragStart = null;
     rectDragCurrent = null;
+    rectDragItem = null;
     rectDrawMode = false;
     btnDrawRect.disabled = false;
     modeHint.textContent = committed
-      ? "已更新限定范围。可继续点击图片取色"
+      ? "已追加限定范围。可继续取色或再绘制矩形框"
       : "请在图片上点击取色；或再次点击「绘制矩形框」限定范围";
-    setWrapCursor("pick");
-    drawRectLayer();
-    if (pickedColor) refreshSelectionAndHighlight();
+    updateCursors();
+    drawRectLayer(item);
+    if (pickedColor) refreshAllHighlights();
   }
 
   btnDrawRect.addEventListener("click", () => {
-    if (!imageWidth) return;
+    if (!images.length) return;
+    if (!activeImageId) setActiveImage(images[0].id);
     rectDrawMode = true;
     btnDrawRect.disabled = true;
-    rectStatus.textContent = "在图片上拖拽绘制矩形…";
+    rectStatus.textContent = "在选中图片上拖拽绘制矩形…";
     modeHint.textContent = "拖拽绘制矩形框，松开后自动回到取色";
-    setWrapCursor("rect");
+    updateCursors();
   });
 
   btnClearRect.addEventListener("click", () => {
-    regionRect = null;
+    const active = getActiveItem();
+    if (!active) return;
+    active.rects = [];
     btnClearRect.disabled = true;
     rectStatus.textContent = "";
-    drawRectLayer();
-    if (pickedColor) refreshSelectionAndHighlight();
+    drawRectLayer(active);
+    if (pickedColor) refreshAllHighlights();
   });
 
   function updateSliderFill() {
@@ -333,14 +426,8 @@
   toleranceEl.addEventListener("input", () => {
     toleranceValue.textContent = toleranceEl.value;
     updateSliderFill();
-    if (pickedColor) refreshSelectionAndHighlight();
+    if (pickedColor) refreshAllHighlights();
   });
-
-  overlayCanvas.addEventListener("click", onOverlayClick);
-  overlayCanvas.addEventListener("pointerdown", onOverlayPointerDown);
-  overlayCanvas.addEventListener("pointermove", onOverlayPointerMove);
-  overlayCanvas.addEventListener("pointerup", onOverlayPointerUp);
-  overlayCanvas.addEventListener("pointercancel", onOverlayPointerUp);
 
   function hexToRgb(hex) {
     const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex.trim());
@@ -391,13 +478,11 @@
 
   [rInput, gInput, bInput].forEach((el) => el.addEventListener("input", onRgbInput));
 
-  // Preset color buttons
   document.querySelectorAll(".preset-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       const hex = btn.getAttribute("data-color");
       if (hex) {
         hexTextInput.value = hex.toUpperCase();
-        // Trigger hex input logic
         const rgb = hexToRgb(hex);
         if (rgb) {
           rInput.value = String(rgb.r);
@@ -415,8 +500,6 @@
       hex = "#" + hex;
       hexTextInput.value = hex;
     }
-    
-    // 只有当输入达到 7 位（# + 6位）时才尝试解析，或者用户手动删除了部分内容
     if (hex.length === 7) {
       const rgb = hexToRgb(hex);
       if (rgb) {
@@ -429,7 +512,7 @@
   });
 
   btnReplace.addEventListener("click", () => {
-    if (!selectionMask || !pickedColor || imageWidth === 0) return;
+    if (!pickedColor || images.length === 0) return;
 
     const nr = parseInt(rInput.value, 10);
     const ng = parseInt(gInput.value, 10);
@@ -438,102 +521,247 @@
     const G = Math.max(0, Math.min(255, ng | 0));
     const B = Math.max(0, Math.min(255, nb | 0));
 
-    const w = imageWidth;
-    const h = imageHeight;
-    const imgData = ictx.getImageData(0, 0, w, h);
-    const d = imgData.data;
-    const mask = selectionMask;
+    for (const item of images) {
+      const mask = item.selectionMask;
+      if (!mask || item.selectionCount === 0) continue;
 
-    for (let i = 0; i < mask.length; i++) {
-      if (!mask[i]) continue;
-      const py = Math.floor(i / w);
-      const px = i % w;
-      if (!isInRegion(px, py)) continue;
-      const oi = i * 4;
-      d[oi] = R;
-      d[oi + 1] = G;
-      d[oi + 2] = B;
-      /* d[oi+3] alpha 不变 */
+      const w = item.width;
+      const h = item.height;
+      const imgData = item.ictx.getImageData(0, 0, w, h);
+      const d = imgData.data;
+
+      for (let i = 0; i < mask.length; i++) {
+        if (!mask[i]) continue;
+        const py = Math.floor(i / w);
+        const px = i % w;
+        if (!isInAnyRect(item, px, py)) continue;
+        const oi = i * 4;
+        d[oi] = R;
+        d[oi + 1] = G;
+        d[oi + 2] = B;
+      }
+
+      item.ictx.putImageData(imgData, 0, 0);
+      item.rctx.clearRect(0, 0, item.rectCanvas.width, item.rectCanvas.height);
+      clearOverlayHighlight(item);
     }
 
-    ictx.putImageData(imgData, 0, 0);
-
-    // 隐藏矩形框视觉效果，但 regionRect 数据保留，下次取色时会重新显示
-    rctx.clearRect(0, 0, rectCanvas.width, rectCanvas.height);
-    // 清除高亮，但保留 selectionMask，允许用户修改目标颜色后继续对同一选区再次替换
-    clearOverlayHighlight();
+    for (const item of images) {
+      drawRectLayer(item);
+    }
 
     modeHint.textContent =
       "替换完成。可继续修改目标颜色后再次替换，或重新点击图片取色";
+    if (pickedColor) refreshAllHighlights();
   });
 
-  btnDownload.addEventListener("click", () => {
-    if (!imageWidth) return;
-    const a = document.createElement("a");
-    a.href = imageCanvas.toDataURL("image/png");
-    a.download = "edited-image.png";
-    a.click();
-  });
+  function canvasToBlob(canvas) {
+    return new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+  }
 
-  function loadImageFromFile(file) {
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      imageWidth = img.naturalWidth;
-      imageHeight = img.naturalHeight;
-      uploadZone.classList.add("has-file");
-      uploadHint.textContent = `${imageWidth} × ${imageHeight} px`;
+  btnDownload.addEventListener("click", async () => {
+    if (!images.length) return;
 
-      [imageCanvas, rectCanvas, overlayCanvas].forEach((c) => {
-        c.width = imageWidth;
-        c.height = imageHeight;
-      });
+    if (images.length === 1) {
+      const item = images[0];
+      const base = item.file.name.replace(/\.[^.]+$/, "") || "image";
+      const a = document.createElement("a");
+      a.href = item.imageCanvas.toDataURL("image/png");
+      a.download = base + "-edited.png";
+      a.click();
+      return;
+    }
 
-      canvasWrap.style.aspectRatio = `${imageWidth} / ${imageHeight}`;
-      canvasWrap.classList.add("has-image");
+    btnDownload.disabled = true;
+    const origText = btnDownload.querySelector("svg").nextSibling;
+    const label = origText ? origText.textContent : "";
+    if (origText) origText.textContent = " 打包中…";
 
-      ictx.drawImage(img, 0, 0);
-      rctx.clearRect(0, 0, imageWidth, imageHeight);
-      octx.clearRect(0, 0, imageWidth, imageHeight);
+    try {
+      const zip = new window.JSZip();
+      await Promise.all(
+        images.map(async (item) => {
+          const base = item.file.name.replace(/\.[^.]+$/, "") || "image";
+          const blob = await canvasToBlob(item.imageCanvas);
+          zip.file(base + "-edited.png", blob);
+        })
+      );
 
-      regionRect = null;
-      pickedColor = null;
-      selectionMask = null;
-      selectionCount = 0;
-      rectDrawMode = false;
-      rectDragging = false;
-      btnClearRect.disabled = true;
-      btnDrawRect.disabled = false;
-      rectStatus.textContent = "";
-      toleranceValue.textContent = toleranceEl.value;
-      updatePickedUI();
-      selectionStats.textContent = "已选中像素：—";
+      const content = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(content);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "images-edited.zip";
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    } finally {
       btnDownload.disabled = false;
-      modeHint.textContent = "请在图片上点击取色";
-      setWrapCursor("pick");
-      drawRectLayer();
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      modeHint.textContent = "图片加载失败，请重试";
-    };
-    img.src = url;
+      if (origText) origText.textContent = label;
+    }
+  });
+
+  /** @param {File} file @returns {Promise<ImageItem|null>} */
+  function createItemFromFile(file) {
+    return new Promise((resolve) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const w = img.naturalWidth;
+        const h = img.naturalHeight;
+
+        const card = document.createElement("div");
+        card.className = "image-card";
+        const id = nextId();
+        card.dataset.id = id;
+
+        const wrap = document.createElement("div");
+        wrap.className = "image-canvas-wrap cursor-pick";
+        wrap.style.aspectRatio = w + " / " + h;
+
+        const imageCanvas = document.createElement("canvas");
+        imageCanvas.className = "img-canvas";
+        const rectCanvas = document.createElement("canvas");
+        rectCanvas.className = "rect-canvas";
+        const overlayCanvas = document.createElement("canvas");
+        overlayCanvas.className = "overlay-canvas";
+
+        [imageCanvas, rectCanvas, overlayCanvas].forEach((c) => {
+          c.width = w;
+          c.height = h;
+        });
+
+        const footer = document.createElement("div");
+        footer.className = "image-card-footer";
+        footer.textContent = `${file.name} · ${w} × ${h} px`;
+
+        wrap.appendChild(imageCanvas);
+        wrap.appendChild(rectCanvas);
+        wrap.appendChild(overlayCanvas);
+        card.appendChild(wrap);
+        card.appendChild(footer);
+
+        const ictx = imageCanvas.getContext("2d", { willReadFrequently: true });
+        const rctx = rectCanvas.getContext("2d");
+        const octx = overlayCanvas.getContext("2d", { willReadFrequently: true });
+
+        ictx.drawImage(img, 0, 0);
+
+        /** @type {ImageItem} */
+        const item = {
+          id,
+          file,
+          card,
+          wrap,
+          imageCanvas,
+          rectCanvas,
+          overlayCanvas,
+          ictx,
+          rctx,
+          octx,
+          rects: [],
+          selectionMask: null,
+          selectionCount: 0,
+          width: w,
+          height: h,
+        };
+
+        overlayCanvas.addEventListener("click", (e) => onOverlayClick(item, e));
+        overlayCanvas.addEventListener("pointerdown", (e) => onOverlayPointerDown(item, e));
+        overlayCanvas.addEventListener("pointermove", (e) => onOverlayPointerMove(item, e));
+        overlayCanvas.addEventListener("pointerup", (e) => onOverlayPointerUp(item, e));
+        overlayCanvas.addEventListener("pointercancel", (e) => onOverlayPointerUp(item, e));
+
+        card.addEventListener("click", (e) => {
+          const t = /** @type {HTMLElement} */ (e.target);
+          if (t === overlayCanvas) return;
+          setActiveImage(item.id);
+        });
+
+        resolve(item);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        resolve(null);
+      };
+      img.src = url;
+    });
+  }
+
+  function updateUploadHint() {
+    if (!images.length) {
+      uploadZone.classList.remove("has-file");
+      uploadHint.textContent = "支持多张 · PNG · JPG · WebP · GIF";
+      return;
+    }
+    uploadZone.classList.add("has-file");
+    uploadHint.textContent = `已加载 ${images.length} 张 · 可继续添加`;
+  }
+
+  /** @param {FileList|File[]} rawFiles */
+  function isDuplicate(file) {
+    return images.some(
+      (item) =>
+        item.file.name === file.name &&
+        item.file.size === file.size &&
+        item.file.lastModified === file.lastModified
+    );
+  }
+
+  async function appendImages(rawFiles) {
+    const list = Array.from(rawFiles || []).filter(
+      (f) => f.type && f.type.startsWith("image/") && !isDuplicate(f)
+    );
+    if (!list.length) return;
+
+    for (const file of list) {
+      const item = await createItemFromFile(file);
+      if (!item) {
+        modeHint.textContent = "部分图片加载失败，已跳过";
+        continue;
+      }
+      imagesGrid.appendChild(item.card);
+      images.push(item);
+    }
+
+    updateGridClass();
+    updateUploadHint();
+    btnDownload.disabled = images.length === 0;
+    btnDrawRect.disabled = images.length === 0;
+
+    if (images.length && !activeImageId) {
+      setActiveImage(images[0].id);
+    } else if (activeImageId && !getActiveItem()) {
+      setActiveImage(images.length ? images[0].id : null);
+    } else {
+      updateClearRectButton();
+      updateCursors();
+    }
+
+    if (pickedColor) refreshAllHighlights();
+    else {
+      selectionStats.textContent = "已选中像素：—";
+      updateReplaceButton();
+    }
+
+    if (images.length) {
+      modeHint.textContent = "请在任意图片上点击取色；选中一张图后可绘制限定框";
+    }
   }
 
   fileInput.addEventListener("change", (e) => {
-    const f = e.target.files && e.target.files[0];
-    if (f) loadImageFromFile(f);
+    const files = e.target.files;
+    if (files && files.length) appendImages(files);
+    fileInput.value = "";
   });
 
-  // Drag-and-drop upload
   uploadZone.addEventListener("dragover", (e) => {
     e.preventDefault();
     uploadZone.classList.add("drag-over");
   });
 
   uploadZone.addEventListener("dragleave", (e) => {
-    if (!uploadZone.contains(e.relatedTarget)) {
+    if (!uploadZone.contains(/** @type {Node} */ (e.relatedTarget))) {
       uploadZone.classList.remove("drag-over");
     }
   });
@@ -541,16 +769,17 @@
   uploadZone.addEventListener("drop", (e) => {
     e.preventDefault();
     uploadZone.classList.remove("drag-over");
-    const f = e.dataTransfer.files && e.dataTransfer.files[0];
-    if (f && f.type.startsWith("image/")) {
-      loadImageFromFile(f);
-    }
+    const dt = e.dataTransfer && e.dataTransfer.files;
+    if (dt && dt.length) appendImages(dt);
   });
 
   toleranceValue.textContent = toleranceEl.value;
   updateSliderFill();
   onRgbInput();
-  setWrapCursor("pick");
+  updateCursors();
   btnReplace.disabled = true;
   btnDownload.disabled = true;
+  btnDrawRect.disabled = true;
+  btnClearRect.disabled = true;
+  selectionStats.textContent = "已选中像素：—";
 })();

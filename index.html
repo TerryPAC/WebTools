@@ -48,7 +48,7 @@
               <h2>上传图片</h2>
             </div>
             <label class="upload-zone" for="fileInput" id="uploadZone">
-              <input type="file" id="fileInput" accept="image/*" hidden />
+              <input type="file" id="fileInput" accept="image/*" multiple hidden />
               <div class="upload-icon-wrap">
                 <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M14 18V9M14 9L10.5 12.5M14 9L17.5 12.5"
@@ -58,8 +58,8 @@
                 </svg>
               </div>
               <div class="upload-label-wrap">
-                <span class="upload-text">点击或拖拽上传图片</span>
-                <span class="upload-hint" id="uploadHint">支持 PNG · JPG · WebP · GIF</span>
+                <span class="upload-text">点击或拖拽上传图片（可多选）</span>
+                <span class="upload-hint" id="uploadHint">支持多张 · PNG · JPG · WebP · GIF</span>
               </div>
             </label>
           </section>
@@ -70,7 +70,7 @@
               <span class="step-badge">2</span>
               <h2>限定范围 <span class="optional-tag">可选</span></h2>
             </div>
-            <p class="hint">绘制矩形框限制替换区域；不绘制则作用于整张图</p>
+            <p class="hint">先点击右侧某张图选中，再为其绘制矩形框（可多次）；未框选的图片默认整张图范围</p>
             <div class="btn-group">
               <button type="button" class="btn btn-secondary" id="btnDrawRect">
                 <svg viewBox="0 0 16 16" fill="none">
@@ -162,7 +162,7 @@
                 <path d="M3.5 14v1.5A1.5 1.5 0 005 17h10a1.5 1.5 0 001.5-1.5V14"
                   stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
               </svg>
-              下载修改后的图片
+              下载所有图片
             </button>
           </section>
 
@@ -175,24 +175,24 @@
               <span id="modeHint" class="mode-hint">请在图片上点击取色</span>
             </div>
           </div>
-          <div class="canvas-wrap" id="canvasWrap">
-            <canvas id="imageCanvas"></canvas>
-            <canvas id="rectCanvas"></canvas>
-            <canvas id="overlayCanvas"></canvas>
-            <div class="canvas-placeholder">
-              <svg viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect x="3" y="3" width="50" height="50" rx="8" stroke="#d1d1d6" stroke-width="1.5"/>
-                <path d="M9 43l11-15 8 10 6-8 13 13H9z" fill="#e5e5ea" stroke="#d1d1d6"
-                  stroke-width="1.5" stroke-linejoin="round"/>
-                <circle cx="39" cy="18" r="5" fill="#e5e5ea" stroke="#d1d1d6" stroke-width="1.5"/>
-              </svg>
-              <p>上传图片后在此预览</p>
+          <div class="canvas-wrap images-grid-wrap" id="imagesGridWrap">
+            <div class="images-grid" id="imagesGrid">
+              <div class="canvas-placeholder" id="globalPlaceholder">
+                <svg viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="3" y="3" width="50" height="50" rx="8" stroke="#d1d1d6" stroke-width="1.5"/>
+                  <path d="M9 43l11-15 8 10 6-8 13 13H9z" fill="#e5e5ea" stroke="#d1d1d6"
+                    stroke-width="1.5" stroke-linejoin="round"/>
+                  <circle cx="39" cy="18" r="5" fill="#e5e5ea" stroke="#d1d1d6" stroke-width="1.5"/>
+                </svg>
+                <p>上传图片后在此平铺预览</p>
+              </div>
             </div>
           </div>
         </section>
       </main>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
     <script src="app.js"></script>
   </body>
 </html>
