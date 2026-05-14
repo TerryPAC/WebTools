@@ -391,6 +391,24 @@
 
   [rInput, gInput, bInput].forEach((el) => el.addEventListener("input", onRgbInput));
 
+  // Preset color buttons
+  document.querySelectorAll(".preset-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const hex = btn.getAttribute("data-color");
+      if (hex) {
+        hexTextInput.value = hex.toUpperCase();
+        // Trigger hex input logic
+        const rgb = hexToRgb(hex);
+        if (rgb) {
+          rInput.value = String(rgb.r);
+          gInput.value = String(rgb.g);
+          bInput.value = String(rgb.b);
+          replaceColor.value = hex.toLowerCase();
+        }
+      }
+    });
+  });
+
   hexTextInput.addEventListener("input", () => {
     let hex = hexTextInput.value.trim();
     if (hex.length > 0 && !hex.startsWith("#")) {
