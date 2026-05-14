@@ -323,7 +323,11 @@
     if (performance.now() < ignorePickUntil) return;
     if (rectDrawMode || rectDragging) return;
     if (!item.width) return;
-    setActiveImage(item.id);
+    if (item.id !== activeImageId) {
+      // 点击非活跃图片时只切换选中，不取色
+      setActiveImage(item.id);
+      return;
+    }
     const { bx, by } = clientToBitmap(item, e.clientX, e.clientY);
     pickAt(item, bx, by);
   }
@@ -525,6 +529,17 @@
     const G = Math.max(0, Math.min(255, ng | 0));
     const B = Math.max(0, Math.min(255, nb | 0));
 
+    // 替换前先保存当前选区快照，用于替换后恢复高亮和按钮可用状态
+    const frozenSnapshots = new Map();
+    for (const item of images) {
+      if (item.selectionMask && item.selectionCount > 0) {
+        frozenSnapshots.set(item.id, {
+          mask: item.selectionMask.slice(),
+          count: item.selectionCount,
+        });
+      }
+    }
+
     for (const item of images) {
       const mask = item.selectionMask;
       if (!mask || item.selectionCount === 0) continue;
@@ -554,9 +569,24 @@
       drawRectLayer(item);
     }
 
+    // 恢复冻结选区数据（不重绘高亮），让按钮保持可用
+    // 用户已确认替换，无需再用高亮提示选区；重新取色或拖动容忍度时才会重现高亮
+    let totalFrozen = 0;
+    for (const item of images) {
+      const snap = frozenSnapshots.get(item.id);
+      if (!snap) continue;
+      item.selectionMask = snap.mask;
+      item.selectionCount = snap.count;
+      totalFrozen += snap.count;
+    }
+
+    selectionStats.textContent =
+      totalFrozen > 0
+        ? `已选中像素：${totalFrozen.toLocaleString()}（${images.length} 张图）`
+        : "已选中像素：—";
     modeHint.textContent =
       "替换完成。可继续修改目标颜色后再次替换，或重新点击图片取色";
-    if (pickedColor) refreshAllHighlights();
+    updateReplaceButton();
   });
 
   function canvasToBlob(canvas) {
@@ -577,9 +607,8 @@
     }
 
     btnDownload.disabled = true;
-    const origText = btnDownload.querySelector("svg").nextSibling;
-    const label = origText ? origText.textContent : "";
-    if (origText) origText.textContent = " 打包中…";
+    const labelEl = document.getElementById("btnDownloadLabel");
+    if (labelEl) labelEl.textContent = " 打包中…";
 
     try {
       const zip = new window.JSZip();
@@ -600,7 +629,7 @@
       setTimeout(() => URL.revokeObjectURL(url), 10000);
     } finally {
       btnDownload.disabled = false;
-      if (origText) origText.textContent = label;
+      updateDownloadButtonLabel();
     }
   });
 
@@ -692,6 +721,12 @@
     });
   }
 
+  function updateDownloadButtonLabel() {
+    const el = document.getElementById("btnDownloadLabel");
+    if (!el) return;
+    el.textContent = images.length > 1 ? "下载所有图片" : "下载图片";
+  }
+
   function updateUploadHint() {
     if (!images.length) {
       uploadZone.classList.remove("has-file");
@@ -730,6 +765,7 @@
 
     updateGridClass();
     updateUploadHint();
+    updateDownloadButtonLabel();
     btnDownload.disabled = images.length === 0;
     btnDrawRect.disabled = images.length === 0;
 
@@ -782,6 +818,7 @@
   onRgbInput();
   updateCursors();
   btnReplace.disabled = true;
+  updateDownloadButtonLabel();
   btnDownload.disabled = true;
   btnDrawRect.disabled = true;
   btnClearRect.disabled = true;
