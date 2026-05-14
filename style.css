@@ -179,6 +179,32 @@ body {
   gap: 0.35rem;
 }
 
+.btn-cancel {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--muted);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-cancel:hover {
+  background: var(--surface-3);
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.btn-cancel svg {
+  flex-shrink: 0;
+}
+
 .step-badge {
   display: inline-flex;
   align-items: center;

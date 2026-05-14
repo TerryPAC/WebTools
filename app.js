@@ -22,6 +22,7 @@
   const toleranceEl = document.getElementById("tolerance");
   const toleranceValue = document.getElementById("toleranceValue");
   const selectionStats = document.getElementById("selectionStats");
+  const btnCancelPick = document.getElementById("btnCancelPick");
 
   const replaceColor = document.getElementById("replaceColor");
   const hexTextInput = document.getElementById("hexTextInput");
@@ -55,6 +56,8 @@
    *   rects: Rect[];
    *   selectionMask: Uint8Array | null;
    *   selectionCount: number;
+   *   frozenMask: Uint8Array | null;
+   *   frozenCount: number;
    *   width: number;
    *   height: number;
    * }} ImageItem
@@ -283,7 +286,7 @@
       btnReplace.disabled = true;
       return;
     }
-    const any = images.some((i) => i.selectionCount > 0);
+    const any = images.some((i) => i.selectionCount > 0 || i.frozenCount > 0);
     btnReplace.disabled = !any;
   }
 
@@ -293,6 +296,7 @@
       pickedHex.textContent = "未取色";
       pickedRgb.textContent = "—";
       btnReplace.disabled = true;
+      btnCancelPick.style.display = "none";
       return;
     }
     const { r, g, b } = pickedColor;
@@ -304,6 +308,7 @@
         .join("")
         .toUpperCase();
     pickedRgb.textContent = `RGB(${r}, ${g}, ${b})`;
+    btnCancelPick.style.display = "inline-flex";
     updateReplaceButton();
   }
 
@@ -311,6 +316,10 @@
   function pickAt(item, bx, by) {
     const d = item.ictx.getImageData(bx, by, 1, 1).data;
     pickedColor = { r: d[0], g: d[1], b: d[2] };
+    // 只清除当前被取色图的冻结选区；其他图的冻结选区保持不变，
+    // 这样用户对不同图片做独立替换后，再修改目标色时所有图都能继续参与
+    item.frozenMask = null;
+    item.frozenCount = 0;
     updatePickedUI();
     for (const im of images) {
       drawRectLayer(im);
@@ -426,6 +435,12 @@
     if (pickedColor) refreshAllHighlights();
   });
 
+  btnCancelPick.addEventListener("click", () => {
+    pickedColor = null;
+    updatePickedUI();
+    refreshAllHighlights();
+  });
+
   function updateSliderFill() {
     const val = Number(toleranceEl.value);
     toleranceEl.style.setProperty("--fill", val + "%");
@@ -529,20 +544,18 @@
     const G = Math.max(0, Math.min(255, ng | 0));
     const B = Math.max(0, Math.min(255, nb | 0));
 
-    // 替换前先保存当前选区快照，用于替换后恢复高亮和按钮可用状态
-    const frozenSnapshots = new Map();
-    for (const item of images) {
-      if (item.selectionMask && item.selectionCount > 0) {
-        frozenSnapshots.set(item.id, {
-          mask: item.selectionMask.slice(),
-          count: item.selectionCount,
-        });
-      }
-    }
+    let totalReplaced = 0;
 
     for (const item of images) {
-      const mask = item.selectionMask;
-      if (!mask || item.selectionCount === 0) continue;
+      // 无论是否有选区，都先清除矩形框显示与取色高亮，符合用户“替换后消失”的预期
+      item.rctx.clearRect(0, 0, item.rectCanvas.width, item.rectCanvas.height);
+      clearOverlayHighlight(item);
+
+      // 优先用当前活跃选区；若该图已在前次替换后被其他图的取色操作清空选区，
+      // 则回落到该图自己的冻结选区，保证多图各自独立替换后仍能继续参与
+      const mask = item.selectionCount > 0 ? item.selectionMask : item.frozenMask;
+      const count = item.selectionCount > 0 ? item.selectionCount : item.frozenCount;
+      if (!mask || count === 0) continue;
 
       const w = item.width;
       const h = item.height;
@@ -561,28 +574,16 @@
       }
 
       item.ictx.putImageData(imgData, 0, 0);
-      item.rctx.clearRect(0, 0, item.rectCanvas.width, item.rectCanvas.height);
-      clearOverlayHighlight(item);
-    }
 
-    for (const item of images) {
-      drawRectLayer(item);
-    }
-
-    // 恢复冻结选区数据（不重绘高亮），让按钮保持可用
-    // 用户已确认替换，无需再用高亮提示选区；重新取色或拖动容忍度时才会重现高亮
-    let totalFrozen = 0;
-    for (const item of images) {
-      const snap = frozenSnapshots.get(item.id);
-      if (!snap) continue;
-      item.selectionMask = snap.mask;
-      item.selectionCount = snap.count;
-      totalFrozen += snap.count;
+      // 将本次使用的 mask 持久化到 frozenMask，供后续修改颜色后继续替换
+      item.frozenMask = mask === item.selectionMask ? mask.slice() : mask;
+      item.frozenCount = count;
+      totalReplaced += count;
     }
 
     selectionStats.textContent =
-      totalFrozen > 0
-        ? `已选中像素：${totalFrozen.toLocaleString()}（${images.length} 张图）`
+      totalReplaced > 0
+        ? `已选中像素：${totalReplaced.toLocaleString()}（${images.length} 张图）`
         : "已选中像素：—";
     modeHint.textContent =
       "替换完成。可继续修改目标颜色后再次替换，或重新点击图片取色";
@@ -695,6 +696,8 @@
           rects: [],
           selectionMask: null,
           selectionCount: 0,
+          frozenMask: null,
+          frozenCount: 0,
           width: w,
           height: h,
         };
