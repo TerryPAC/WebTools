@@ -104,7 +104,11 @@
   }
 
   function updateGridClass() {
-    imagesGrid.classList.toggle("has-images", images.length > 0);
+    const n = images.length;
+    imagesGrid.classList.toggle("has-images", n > 0);
+    imagesGrid.classList.toggle("grid-count-1", n === 1);
+    imagesGrid.classList.toggle("grid-count-2", n === 2);
+    imagesGrid.classList.toggle("grid-count-many", n >= 3);
   }
 
   function updateClearRectButton() {

@@ -31,7 +31,10 @@
 
 body {
   margin: 0;
-  min-height: 100vh;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   font-family: var(--font);
   background: var(--bg);
   color: var(--text);
@@ -42,8 +45,14 @@ body {
 /* ─── App Shell ─────────────────────────────────────────── */
 .app {
   max-width: 1320px;
+  width: 100%;
   margin: 0 auto;
-  padding: 1.4rem 1.25rem 2rem;
+  padding: 1.4rem 1.25rem 1.5rem;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
 }
 
 /* ─── Header ────────────────────────────────────────────── */
@@ -86,6 +95,8 @@ body {
   grid-template-columns: auto minmax(230px, 252px) 1fr;
   gap: 1rem;
   align-items: start;
+  flex: 1;
+  min-height: 0;
 }
 
 @media (max-width: 900px) {
@@ -667,9 +678,14 @@ input[type="range"]::-moz-range-thumb {
   padding: 1.1rem;
   box-shadow: var(--shadow);
   border: 1px solid var(--border);
-  min-height: 420px;
+  min-height: 50vh;
   display: flex;
   flex-direction: column;
+}
+
+/* 有图时撑满到浏览器底部 */
+.preview:has(.images-grid.has-images) {
+  min-height: calc(100vh - 7.5rem);
 }
 
 /* ─── Preview Toolbar ────────────────────────────────────── */
@@ -714,11 +730,16 @@ input[type="range"]::-moz-range-thumb {
   position: relative;
   width: 100%;
   flex: 1;
-  max-height: min(72vh, 920px);
+  max-height: calc(50vh - 5rem);
   overflow: auto;
   border-radius: var(--radius-xs);
   background: repeating-conic-gradient(#e5e5ea 0% 25%, #ebebf0 0% 50%) 50% / 14px 14px;
   border: 1px solid var(--border);
+}
+
+/* 有图时移除高度上限，随 .preview 自然撑满 */
+.preview:has(.images-grid.has-images) .canvas-wrap.images-grid-wrap {
+  max-height: none;
 }
 
 .images-grid {
@@ -741,8 +762,8 @@ input[type="range"]::-moz-range-thumb {
 
 /* ─── Image card ─────────────────────────────────────────── */
 .image-card {
-  flex: 0 0 calc(33.333% - 8px);
-  width: calc(33.333% - 8px);
+  flex: 0 0 calc(50% - 6px);
+  width: calc(50% - 6px);
   min-width: 140px;
   background: var(--surface);
   border-radius: var(--radius-sm);
@@ -751,6 +772,18 @@ input[type="range"]::-moz-range-thumb {
   overflow: hidden;
   cursor: pointer;
   transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+/* 1 张图：撑满整个容器 */
+.images-grid.grid-count-1 .image-card {
+  flex: 0 0 100%;
+  width: 100%;
+}
+
+/* 2 张图：每行 1 张，各占整行 */
+.images-grid.grid-count-2 .image-card {
+  flex: 0 0 100%;
+  width: 100%;
 }
 
 .image-card:hover {
