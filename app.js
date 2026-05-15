@@ -31,6 +31,8 @@
   const bInput = document.getElementById("bInput");
   const btnReplace = document.getElementById("btnReplace");
   const btnDownload = document.getElementById("btnDownload");
+  const panelEl = document.querySelector(".panel");
+  const previewEl = document.querySelector(".preview");
 
   /** @type {{ r: number; g: number; b: number } | null} */
   let pickedColor = null;
@@ -111,6 +113,17 @@
     imagesGrid.classList.toggle("grid-count-1", n === 1);
     imagesGrid.classList.toggle("grid-count-2", n === 2);
     imagesGrid.classList.toggle("grid-count-many", n >= 3);
+    syncEmptyPreviewHeight();
+  }
+
+  /** 空状态：右侧预览区高度跟随左侧操作面板，避免撑满视口 */
+  function syncEmptyPreviewHeight() {
+    if (!panelEl || !previewEl) return;
+    if (images.length > 0) {
+      previewEl.style.removeProperty("min-height");
+      return;
+    }
+    previewEl.style.minHeight = `${panelEl.offsetHeight}px`;
   }
 
   function updateRectUI(msg) {
@@ -927,6 +940,11 @@
   updateSliderFill();
   onRgbInput();
   updateCursors();
+  if (panelEl && previewEl) {
+    new ResizeObserver(() => syncEmptyPreviewHeight()).observe(panelEl);
+  }
+  window.addEventListener("resize", syncEmptyPreviewHeight);
+  syncEmptyPreviewHeight();
   btnReplace.disabled = true;
   updateDownloadButtonLabel();
   btnDownload.disabled = true;

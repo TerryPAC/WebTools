@@ -716,7 +716,7 @@ input[type="range"]::-moz-range-thumb {
   padding: 1.1rem;
   box-shadow: var(--shadow);
   border: 1px solid var(--border);
-  min-height: 50vh;
+  min-height: 0;
   display: flex;
   flex-direction: column;
 }
@@ -768,11 +768,16 @@ input[type="range"]::-moz-range-thumb {
   position: relative;
   width: 100%;
   flex: 1;
-  max-height: calc(50vh - 5rem);
+  min-height: 0;
   overflow: auto;
   border-radius: var(--radius-xs);
   background: repeating-conic-gradient(#e5e5ea 0% 25%, #ebebf0 0% 50%) 50% / 14px 14px;
   border: 1px solid var(--border);
+}
+
+.canvas-wrap.images-grid-wrap:not(:has(.images-grid.has-images)) {
+  display: flex;
+  flex-direction: column;
 }
 
 /* 有图时移除高度上限，随 .preview 自然撑满 */
@@ -788,6 +793,15 @@ input[type="range"]::-moz-range-thumb {
   padding: 14px 14px 6px 6px;
   min-height: 280px;
   position: relative;
+}
+
+.images-grid:not(.has-images) {
+  position: static;
+  flex: 1;
+  width: 100%;
+  min-height: 100%;
+  height: 100%;
+  padding: 0;
 }
 
 .images-grid.has-images {
@@ -951,11 +965,8 @@ input[type="range"]::-moz-range-thumb {
 /* ─── Canvas Placeholder (empty grid) ────────────────────── */
 #globalPlaceholder.canvas-placeholder {
   position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  min-height: 260px;
+  inset: 0;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
