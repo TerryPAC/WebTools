@@ -785,7 +785,7 @@ input[type="range"]::-moz-range-thumb {
   flex-wrap: wrap;
   gap: 12px;
   align-content: flex-start;
-  padding: 4px;
+  padding: 14px 14px 6px 6px;
   min-height: 280px;
   position: relative;
 }
@@ -807,7 +807,8 @@ input[type="range"]::-moz-range-thumb {
   border-radius: var(--radius-sm);
   border: 2px solid var(--border);
   box-shadow: var(--shadow-sm);
-  overflow: hidden;
+  overflow: visible;
+  position: relative;
   cursor: pointer;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
@@ -833,9 +834,81 @@ input[type="range"]::-moz-range-thumb {
   box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.18), var(--shadow-sm);
 }
 
+.btn-delete-image {
+  position: absolute;
+  top: -12px;
+  right: -12px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1.5px solid var(--accent);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 20;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  opacity: 0.8;
+}
+
+.btn-delete-image:hover {
+  background: var(--accent);
+  color: white;
+  transform: scale(1.1);
+  opacity: 1;
+  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+}
+
+.btn-delete-image svg {
+  width: 12px;
+  height: 12px;
+  stroke-width: 2.5;
+}
+
+.btn-delete-rect {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 15;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  opacity: 0.85;
+  pointer-events: auto;
+  transform: translate(-50%, -50%);
+}
+
+.btn-delete-rect:hover {
+  background: var(--accent);
+  color: white;
+  transform: translate(-50%, -50%) scale(1.1);
+  opacity: 1;
+  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+}
+
+.btn-delete-rect svg {
+  width: 9px;
+  height: 9px;
+  stroke-width: 1.5;
+}
+
 .image-canvas-wrap {
   position: relative;
   width: 100%;
+  overflow: hidden;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
   background: repeating-conic-gradient(#e5e5ea 0% 25%, #ebebf0 0% 50%) 50% / 12px 12px;
 }
 
@@ -872,6 +945,7 @@ input[type="range"]::-moz-range-thumb {
   overflow: hidden;
   text-overflow: ellipsis;
   background: var(--surface-2);
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
 }
 
 /* ─── Canvas Placeholder (empty grid) ────────────────────── */

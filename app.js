@@ -81,8 +81,6 @@
 
   const HIGHLIGHT = { r: 255, g: 0, b: 128, a: Math.round(0.45 * 255) };
   const MIN_RECT_SIZE = 3;
-  const RECT_DELETE_SIZE = 20;
-
   function getActiveItem() {
     if (!activeImageId) return null;
     return images.find((i) => i.id === activeImageId) || null;
@@ -119,16 +117,13 @@
     const active = getActiveItem();
     const hasRects = active && active.rects.length > 0;
     btnClearRect.disabled = !hasRects;
-    if (active) {
-      if (msg) {
-        rectStatus.textContent = msg;
-      } else if (rectDrawMode) {
-        rectStatus.textContent = "在选中图片上拖拽绘制矩形…";
-      } else {
-        rectStatus.textContent = hasRects ? `当前图已 ${active.rects.length} 个限定框` : "";
-      }
+    if (msg) {
+      rectStatus.textContent = msg;
+    } else if (rectDrawMode) {
+      rectStatus.textContent = "在选中图片上拖拽绘制矩形…";
     } else {
-      rectStatus.textContent = "";
+      const totalRects = images.reduce((sum, i) => sum + i.rects.length, 0);
+      rectStatus.textContent = totalRects > 0 ? `共 ${totalRects} 个限定框` : "";
     }
   }
 
@@ -194,40 +189,9 @@
       rctx.fillStyle = preview ? "rgba(59, 158, 255, 0.08)" : "rgba(59, 158, 255, 0.12)";
       rctx.fillRect(rx, ry, rw, rh);
       rctx.strokeStyle = preview ? "rgba(120, 190, 255, 0.95)" : "rgba(59, 158, 255, 0.95)";
-      rctx.lineWidth = 2;
+      rctx.lineWidth = 1;
       rctx.setLineDash([8, 6]);
-      rctx.strokeRect(rx + 1, ry + 1, rw - 2, rh - 2);
-
-      // 绘制右上角删除按钮 (非预览状态)
-      if (!preview) {
-        const radius = RECT_DELETE_SIZE / 2;
-        // 稍微往右上角偏移，使其中心位于顶点外侧
-        const cx = rx + rw + 2;
-        const cy = ry - 2;
-        
-        rctx.setLineDash([]);
-        // 绘制圆形背景（半透明白色，方便看清 X）
-        rctx.fillStyle = "rgba(255, 255, 255, 0.9)";
-        rctx.beginPath();
-        rctx.arc(cx, cy, radius, 0, Math.PI * 2);
-        rctx.fill();
-
-        // 绘制圆形边框（与限定框一致的蓝色）
-        rctx.strokeStyle = "rgba(59, 158, 255, 0.95)";
-        rctx.lineWidth = 1.5;
-        rctx.stroke();
-
-        // 绘制 X
-        rctx.strokeStyle = "rgba(59, 158, 255, 0.95)";
-        rctx.lineWidth = 2;
-        rctx.beginPath();
-        const p = radius * 0.45;
-        rctx.moveTo(cx - p, cy - p);
-        rctx.lineTo(cx + p, cy + p);
-        rctx.moveTo(cx + p, cy - p);
-        rctx.lineTo(cx - p, cy + p);
-        rctx.stroke();
-      }
+      rctx.strokeRect(rx + 0.5, ry + 0.5, rw - 1, rh - 1);
 
       rctx.restore();
     };
@@ -244,6 +208,41 @@
         rectDragCurrent.y
       );
       if (n.w >= 1 && n.h >= 1) drawOne(n.x, n.y, n.w, n.h, true);
+    }
+
+    // 拖拽中不重建按钮，避免频繁 DOM 操作
+    if (!rectDragging) syncRectDeleteButtons(item);
+  }
+
+  /** @param {ImageItem} item */
+  function syncRectDeleteButtons(item) {
+    for (const btn of item._rectBtns) btn.remove();
+    item._rectBtns = [];
+
+    for (let idx = 0; idx < item.rects.length; idx++) {
+      const r = item.rects[idx];
+      const btn = document.createElement("button");
+      btn.className = "btn-delete-rect";
+      btn.title = "删除限定框";
+      btn.innerHTML = `<svg viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M3.5 3.5L10.5 10.5M10.5 3.5L3.5 10.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>`;
+
+      // 中心定位在矩形右上角，使用百分比坐标转换
+      btn.style.left = `${((r.x + r.w) / item.width) * 100}%`;
+      btn.style.top = `${(r.y / item.height) * 100}%`;
+
+      const capturedIdx = idx;
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        item.rects.splice(capturedIdx, 1);
+        drawRectLayer(item);
+        updateRectUI();
+        if (pickedColor) refreshAllHighlights();
+      });
+
+      item.wrap.appendChild(btn);
+      item._rectBtns.push(btn);
     }
   }
 
@@ -380,24 +379,6 @@
 
     const { bx, by } = clientToBitmap(item, e.clientX, e.clientY);
 
-    // 检查是否点击了某个矩形框的删除按钮
-    for (let i = item.rects.length - 1; i >= 0; i--) {
-      const r = item.rects[i];
-      const radius = RECT_DELETE_SIZE / 2;
-      const cx = r.x + r.w + 2;
-      const cy = r.y - 2;
-      
-      // 圆形碰撞检测
-      const dist = Math.hypot(bx - cx, by - cy);
-      if (dist <= radius + 2) { // 稍微增加一点判定范围，方便点击
-        item.rects.splice(i, 1);
-        drawRectLayer(item);
-        updateRectUI();
-        if (pickedColor) refreshAllHighlights();
-        return;
-      }
-    }
-
     if (item.id !== activeImageId) {
       // 点击非活跃图片时只切换选中，不取色
       setActiveImage(item.id);
@@ -430,22 +411,6 @@
       return;
     }
 
-    // 检查是否悬停在删除按钮上，改变光标
-    if (!rectDrawMode && !rectDragging && item.width) {
-      const { bx, by } = clientToBitmap(item, e.clientX, e.clientY);
-      let overDelete = false;
-      for (const r of item.rects) {
-        const radius = RECT_DELETE_SIZE / 2;
-        const cx = r.x + r.w + 2;
-        const cy = r.y - 2;
-        const dist = Math.hypot(bx - cx, by - cy);
-        if (dist <= radius + 2) {
-          overDelete = true;
-          break;
-        }
-      }
-      item.overlayCanvas.style.cursor = overDelete ? "pointer" : "";
-    }
   }
 
   /** @param {ImageItem} item */
@@ -519,9 +484,11 @@
   });
 
   rectStatus.addEventListener("click", () => {
-    const active = getActiveItem();
-    if (active && active.rects.length > 0) {
-      drawRectLayer(active);
+    const totalRects = images.reduce((sum, i) => sum + i.rects.length, 0);
+    if (totalRects > 0) {
+      for (const item of images) {
+        drawRectLayer(item);
+      }
     }
   });
 
@@ -639,6 +606,8 @@
     for (const item of images) {
       // 无论是否有选区，都先清除矩形框显示与取色高亮，符合用户“替换后消失”的预期
       item.rctx.clearRect(0, 0, item.rectCanvas.width, item.rectCanvas.height);
+      for (const btn of item._rectBtns) btn.remove();
+      item._rectBtns = [];
       clearOverlayHighlight(item);
 
       // 优先用当前活跃选区；若该图已在前次替换后被其他图的取色操作清空选区，
@@ -724,6 +693,38 @@
     }
   });
 
+  function removeImage(id) {
+    const index = images.findIndex((i) => i.id === id);
+    if (index === -1) return;
+
+    const item = images[index];
+    images.splice(index, 1);
+    item.card.remove();
+
+    updateGridClass();
+    updateUploadHint();
+    updateDownloadButtonLabel();
+    btnDownload.disabled = images.length === 0;
+    btnDrawRect.disabled = images.length === 0;
+
+    if (activeImageId === id) {
+      if (images.length > 0) {
+        const nextActiveIndex = Math.min(index, images.length - 1);
+        setActiveImage(images[nextActiveIndex].id);
+      } else {
+        setActiveImage(null);
+      }
+    }
+
+    if (pickedColor) refreshAllHighlights();
+    else {
+      if (images.length === 0) {
+        selectionStats.textContent = "已选中像素：—";
+      }
+      updateReplaceButton();
+    }
+  }
+
   /** @param {File} file @returns {Promise<ImageItem|null>} */
   function createItemFromFile(file) {
     return new Promise((resolve) => {
@@ -755,6 +756,15 @@
           c.height = h;
         });
 
+        const btnDelete = document.createElement("button");
+        btnDelete.className = "btn-delete-image";
+        btnDelete.title = "删除图片";
+        btnDelete.innerHTML = `
+          <svg viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M3.5 3.5L10.5 10.5M10.5 3.5L3.5 10.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        `;
+
         const footer = document.createElement("div");
         footer.className = "image-card-footer";
         footer.textContent = `${file.name} · ${w} × ${h} px`;
@@ -763,6 +773,7 @@
         wrap.appendChild(rectCanvas);
         wrap.appendChild(overlayCanvas);
         card.appendChild(wrap);
+        card.appendChild(btnDelete);
         card.appendChild(footer);
 
         const ictx = imageCanvas.getContext("2d", { willReadFrequently: true });
@@ -784,6 +795,7 @@
           rctx,
           octx,
           rects: [],
+          _rectBtns: [],
           selectionMask: null,
           selectionCount: 0,
           frozenMask: null,
@@ -798,9 +810,14 @@
         overlayCanvas.addEventListener("pointerup", (e) => onOverlayPointerUp(item, e));
         overlayCanvas.addEventListener("pointercancel", (e) => onOverlayPointerUp(item, e));
 
+        btnDelete.addEventListener("click", (e) => {
+          e.stopPropagation();
+          removeImage(item.id);
+        });
+
         card.addEventListener("click", (e) => {
           const t = /** @type {HTMLElement} */ (e.target);
-          if (t === overlayCanvas) return;
+          if (t === overlayCanvas || t.closest(".btn-delete-image") || t.closest(".btn-delete-rect")) return;
           setActiveImage(item.id);
         });
 
