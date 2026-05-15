@@ -81,6 +81,7 @@
 
   const HIGHLIGHT = { r: 255, g: 0, b: 128, a: Math.round(0.45 * 255) };
   const MIN_RECT_SIZE = 3;
+  const RECT_DELETE_SIZE = 20;
 
   function getActiveItem() {
     if (!activeImageId) return null;
@@ -93,7 +94,7 @@
       for (const item of images) {
         item.card.classList.remove("active");
       }
-      updateClearRectButton();
+      updateRectUI();
       updateCursors();
       return;
     }
@@ -102,7 +103,7 @@
     for (const item of images) {
       item.card.classList.toggle("active", item.id === id);
     }
-    updateClearRectButton();
+    updateRectUI();
     updateCursors();
   }
 
@@ -114,9 +115,21 @@
     imagesGrid.classList.toggle("grid-count-many", n >= 3);
   }
 
-  function updateClearRectButton() {
+  function updateRectUI(msg) {
     const active = getActiveItem();
-    btnClearRect.disabled = !active || active.rects.length === 0;
+    const hasRects = active && active.rects.length > 0;
+    btnClearRect.disabled = !hasRects;
+    if (active) {
+      if (msg) {
+        rectStatus.textContent = msg;
+      } else if (rectDrawMode) {
+        rectStatus.textContent = "在选中图片上拖拽绘制矩形…";
+      } else {
+        rectStatus.textContent = hasRects ? `当前图已 ${active.rects.length} 个限定框` : "";
+      }
+    } else {
+      rectStatus.textContent = "";
+    }
   }
 
   function updateCursors() {
@@ -184,6 +197,38 @@
       rctx.lineWidth = 2;
       rctx.setLineDash([8, 6]);
       rctx.strokeRect(rx + 1, ry + 1, rw - 2, rh - 2);
+
+      // 绘制右上角删除按钮 (非预览状态)
+      if (!preview) {
+        const radius = RECT_DELETE_SIZE / 2;
+        // 稍微往右上角偏移，使其中心位于顶点外侧
+        const cx = rx + rw + 2;
+        const cy = ry - 2;
+        
+        rctx.setLineDash([]);
+        // 绘制圆形背景（半透明白色，方便看清 X）
+        rctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+        rctx.beginPath();
+        rctx.arc(cx, cy, radius, 0, Math.PI * 2);
+        rctx.fill();
+
+        // 绘制圆形边框（与限定框一致的蓝色）
+        rctx.strokeStyle = "rgba(59, 158, 255, 0.95)";
+        rctx.lineWidth = 1.5;
+        rctx.stroke();
+
+        // 绘制 X
+        rctx.strokeStyle = "rgba(59, 158, 255, 0.95)";
+        rctx.lineWidth = 2;
+        rctx.beginPath();
+        const p = radius * 0.45;
+        rctx.moveTo(cx - p, cy - p);
+        rctx.lineTo(cx + p, cy + p);
+        rctx.moveTo(cx + p, cy - p);
+        rctx.lineTo(cx - p, cy + p);
+        rctx.stroke();
+      }
+
       rctx.restore();
     };
 
@@ -332,12 +377,32 @@
     if (performance.now() < ignorePickUntil) return;
     if (rectDrawMode || rectDragging) return;
     if (!item.width) return;
+
+    const { bx, by } = clientToBitmap(item, e.clientX, e.clientY);
+
+    // 检查是否点击了某个矩形框的删除按钮
+    for (let i = item.rects.length - 1; i >= 0; i--) {
+      const r = item.rects[i];
+      const radius = RECT_DELETE_SIZE / 2;
+      const cx = r.x + r.w + 2;
+      const cy = r.y - 2;
+      
+      // 圆形碰撞检测
+      const dist = Math.hypot(bx - cx, by - cy);
+      if (dist <= radius + 2) { // 稍微增加一点判定范围，方便点击
+        item.rects.splice(i, 1);
+        drawRectLayer(item);
+        updateRectUI();
+        if (pickedColor) refreshAllHighlights();
+        return;
+      }
+    }
+
     if (item.id !== activeImageId) {
       // 点击非活跃图片时只切换选中，不取色
       setActiveImage(item.id);
       return;
     }
-    const { bx, by } = clientToBitmap(item, e.clientX, e.clientY);
     pickAt(item, bx, by);
   }
 
@@ -358,10 +423,29 @@
 
   /** @param {ImageItem} item */
   function onOverlayPointerMove(item, e) {
-    if (!rectDragging || rectDragItem !== item || !rectDragStart) return;
-    const p = clientToBitmap(item, e.clientX, e.clientY);
-    rectDragCurrent = { x: p.bx, y: p.by };
-    drawRectLayer(item);
+    if (rectDragging && rectDragItem === item && rectDragStart) {
+      const p = clientToBitmap(item, e.clientX, e.clientY);
+      rectDragCurrent = { x: p.bx, y: p.by };
+      drawRectLayer(item);
+      return;
+    }
+
+    // 检查是否悬停在删除按钮上，改变光标
+    if (!rectDrawMode && !rectDragging && item.width) {
+      const { bx, by } = clientToBitmap(item, e.clientX, e.clientY);
+      let overDelete = false;
+      for (const r of item.rects) {
+        const radius = RECT_DELETE_SIZE / 2;
+        const cx = r.x + r.w + 2;
+        const cy = r.y - 2;
+        const dist = Math.hypot(bx - cx, by - cy);
+        if (dist <= radius + 2) {
+          overDelete = true;
+          break;
+        }
+      }
+      item.overlayCanvas.style.cursor = overDelete ? "pointer" : "";
+    }
   }
 
   /** @param {ImageItem} item */
@@ -381,6 +465,7 @@
       );
     }
 
+    let msg = "";
     if (rectDragStart && rectDragCurrent) {
       let n = normalizeRect(
         rectDragStart.x,
@@ -392,10 +477,8 @@
       if (n.w >= MIN_RECT_SIZE && n.h >= MIN_RECT_SIZE) {
         item.rects.push(n);
         committed = true;
-        rectStatus.textContent = `当前图已 ${item.rects.length} 个限定框`;
-        updateClearRectButton();
       } else {
-        rectStatus.textContent = "框选过小，已忽略";
+        msg = "框选过小，已忽略";
       }
     }
 
@@ -407,6 +490,7 @@
     rectDragItem = null;
     rectDrawMode = false;
     btnDrawRect.disabled = false;
+    updateRectUI(msg);
     modeHint.textContent = committed
       ? "已追加限定范围。可继续取色或再绘制矩形框"
       : "请在图片上点击取色；或再次点击「绘制矩形框」限定范围";
@@ -420,7 +504,7 @@
     if (!activeImageId) setActiveImage(images[0].id);
     rectDrawMode = true;
     btnDrawRect.disabled = true;
-    rectStatus.textContent = "在选中图片上拖拽绘制矩形…";
+    updateRectUI();
     modeHint.textContent = "拖拽绘制矩形框，松开后自动回到取色";
     updateCursors();
   });
@@ -429,10 +513,16 @@
     const active = getActiveItem();
     if (!active) return;
     active.rects = [];
-    btnClearRect.disabled = true;
-    rectStatus.textContent = "";
+    updateRectUI();
     drawRectLayer(active);
     if (pickedColor) refreshAllHighlights();
+  });
+
+  rectStatus.addEventListener("click", () => {
+    const active = getActiveItem();
+    if (active && active.rects.length > 0) {
+      drawRectLayer(active);
+    }
   });
 
   btnCancelPick.addEventListener("click", () => {
@@ -777,7 +867,7 @@
     } else if (activeImageId && !getActiveItem()) {
       setActiveImage(images.length ? images[0].id : null);
     } else {
-      updateClearRectButton();
+      updateRectUI();
       updateCursors();
     }
 

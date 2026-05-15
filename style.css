@@ -414,6 +414,18 @@ body {
   color: var(--accent);
   min-height: 1em;
   font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  display: inline-block;
+}
+
+.status:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
+
+.status:empty {
+  cursor: default;
 }
 
 /* ─── Picked Color ───────────────────────────────────────── */
