@@ -1,3 +1,62 @@
-.cursor/
-.DS_Store
+# =============================================================================
+# AppIconTool / WebTools — static HTML/CSS/JS (IconTool, BannerTool)
+# =============================================================================
+
+# --- OS ---
+**/.DS_Store
+.AppleDouble
+.LSOverride
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# --- Dependencies (local tooling, CDN used at runtime) ---
 node_modules/
+
+# --- Build & deploy output ---
+dist/
+build/
+out/
+.output/
+_site/
+.vercel/
+.netlify/
+
+# --- Environment & secrets ---
+.env
+.env.*
+!.env.example
+
+# --- IDE & editor ---
+.cursor/
+.idea/
+*.swp
+*.swo
+*~
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# --- Logs & debug ---
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# --- Cache & temp ---
+.cache/
+.parcel-cache/
+.turbo/
+*.tmp
+*.temp
+*.local
+
+# --- Test & coverage (if added later) ---
+coverage/
+.nyc_output/
+
+# --- Optional: local export / scratch (browser download tests) ---
+# exports/
+# *.zip

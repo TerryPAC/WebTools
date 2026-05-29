@@ -1,37 +1,47 @@
-# WebTools - 纯前端在线工具集
+# WebTools
 
-这是一个纯前端开发的在线工具集合，所有处理均在浏览器本地完成，不上传服务器，确保数据隐私安全。
+A collection of browser-only utilities. All processing happens locally in your browser — nothing is uploaded to a server.
 
-## 工具列表
+## Tools
 
-### 1. [IconTool](./IconTool/) - 图片取色与颜色替换
-支持上传图片、选取特定颜色并进行替换。提供容忍度调节和局部区域限定功能。
+### [IconTool](./IconTool/) — Image Color Picker & Replacer
 
-### 2. [BannerTool](./BannerTool/) - 网页横幅制作 (开发中)
-用于快速生成网页 Banner、社交媒体封面等。
+Upload images, pick a color, adjust tolerance, optionally limit the area with a rectangle, and replace matched pixels with a new color. Supports PNG, JPG, WebP, and more.
 
----
+### [BannerTool](./BannerTool/) — Live Skia Banner Preview
 
-## 项目结构
+Edit and preview Skia-style banner JSON for Galaxy S8 (and related `normal` / `ipad` configs). Paste or edit JSON, tweak the S8 section, and see a live CanvasKit render with bundled fonts.
+
+## Project layout
 
 ```
 / (root)
-├── index.html          # 导航首页
-├── IconTool/           # 图片取色工具
+├── index.html          # Landing page
+├── README.md
+├── IconTool/
 │   ├── index.html
 │   ├── app.js
-│   └── style.css
-└── BannerTool/         # 横幅制作工具 (待添加)
+│   ├── style.css
+│   └── README.md
+└── BannerTool/
+    ├── index.html
+    └── fonts/
 ```
 
-## 技术栈
+## Tech stack
 
-- HTML5 / CSS3 / Vanilla JavaScript
-- Canvas API
+- HTML5, CSS3, vanilla JavaScript
+- Canvas API (IconTool)
+- CanvasKit / Skia (BannerTool)
 
-## 部署
+## Deployment
 
-项目已通过 GitHub Pages 托管，可通过以下地址访问：
-[https://terrypac.github.io/IconTool/](https://terrypac.github.io/IconTool/)
+Hosted on GitHub Pages:
 
-> **注意**：由于 GitHub 仓库名仍为 `IconTool`，访问路径包含 `/IconTool/`。如果未来重命名仓库为 `WebTools`，路径将变为 `https://terrypac.github.io/WebTools/`。
+| Page | URL |
+|------|-----|
+| Home | [https://terrypac.github.io/IconTool/](https://terrypac.github.io/IconTool/) |
+| IconTool | [https://terrypac.github.io/IconTool/IconTool/](https://terrypac.github.io/IconTool/IconTool/) |
+| BannerTool | [https://terrypac.github.io/IconTool/BannerTool/](https://terrypac.github.io/IconTool/BannerTool/) |
+
+> **Note:** The repository is still named `IconTool`, so paths include `/IconTool/`. Renaming the repo to `WebTools` on GitHub would change the base URL to `https://terrypac.github.io/WebTools/`.

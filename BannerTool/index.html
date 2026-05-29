@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>Skia Banner Preview (Galaxy S8)</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+    * { box-sizing: border-box; }
+    :root {
+      --preview-screen-width: 360px;
+      --preview-gutter: 24px;
+      --preview-panel-width: calc(var(--preview-screen-width) + 2 * var(--preview-gutter));
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      background:
+        radial-gradient(1200px 600px at 15% -10%, rgba(34, 197, 94, 0.16), transparent 60%),
+        radial-gradient(1000px 520px at 85% 0%, rgba(99, 102, 241, 0.18), transparent 58%),
+        #0f172a;
+      color: #f8fafc;
+      font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+    header {
+      height: 56px;
+      background: rgba(15, 23, 42, 0.78);
+      backdrop-filter: blur(10px);
+      display: flex;
+      align-items: center;
+      padding: 0 22px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+      gap: 14px;
+      flex-shrink: 0;
+    }
+    .brand {
+      color: #93c5fd;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      font-size: 15px;
+    }
+    .status {
+      font-size: 12px;
+      color: #94a3b8;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(30, 41, 59, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.22);
+    }
+    main {
+      flex: 1;
+      display: flex;
+      overflow: auto;
+      min-height: 0;
+      gap: 12px;
+      padding: 12px;
+    }
+    .panel {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      border-radius: 14px;
+      background: linear-gradient(165deg, rgba(15, 23, 42, 0.86), rgba(30, 41, 59, 0.72));
+      box-shadow: 0 10px 30px rgba(2, 6, 23, 0.35);
+      overflow: hidden;
+    }
+    .panel-source,
+    .panel-edit {
+      flex: 1 1 0;
+    }
+    .panel-header {
+      padding: 11px 14px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #cbd5e1;
+      background: rgba(15, 23, 42, 0.82);
+      border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+      flex-shrink: 0;
+    }
+    .panel-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .panel-header-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+    .panel-header span {
+      color: #93c5fd;
+      font-weight: 400;
+      text-transform: none;
+      letter-spacing: 0;
+    }
+    .effective-badge {
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: rgba(34, 197, 94, 0.2);
+      border: 1px solid rgba(74, 222, 128, 0.45);
+      color: #86efac;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .copy-icon-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      background: rgba(51, 65, 85, 0.45);
+      color: #cbd5e1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background-color 220ms ease, border-color 220ms ease;
+    }
+    .copy-icon-btn:hover {
+      background: rgba(71, 85, 105, 0.75);
+      border-color: rgba(148, 163, 184, 0.6);
+    }
+    .copy-icon-btn:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.5);
+    }
+    .copy-icon-btn svg {
+      width: 15px;
+      height: 15px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+    }
+    .panel-note {
+      padding: 8px 14px;
+      font-size: 11px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+      color: #94a3b8;
+      background: rgba(15, 23, 42, 0.45);
+    }
+    .panel-source .panel-note {
+      color: #64748b;
+    }
+    .panel-edit {
+      border-color: rgba(74, 222, 128, 0.45);
+      box-shadow: 0 12px 34px rgba(22, 163, 74, 0.12), 0 10px 30px rgba(2, 6, 23, 0.35);
+    }
+    .panel-edit .panel-header {
+      background: linear-gradient(120deg, rgba(20, 83, 45, 0.55), rgba(15, 23, 42, 0.9));
+      border-bottom-color: rgba(74, 222, 128, 0.35);
+    }
+    .json-textarea {
+      flex: 1;
+      background: rgba(15, 23, 42, 0.72);
+      color: #e2e8f0;
+      border: none;
+      padding: 14px 14px 16px;
+      font-family: 'JetBrains Mono', 'SF Mono', monospace;
+      font-size: 12px;
+      resize: none;
+      outline: none;
+      line-height: 1.5;
+      min-height: 0;
+    }
+    .json-textarea::placeholder {
+      color: #64748b;
+    }
+    .json-textarea:focus-visible {
+      box-shadow: inset 0 0 0 2px rgba(96, 165, 250, 0.55);
+    }
+    #previewPanel {
+      flex: 0 0 var(--preview-panel-width);
+      width: var(--preview-panel-width);
+      min-width: var(--preview-panel-width);
+      min-height: 0;
+    }
+    #previewContainer {
+      flex: 1;
+      background:
+        radial-gradient(560px 300px at 50% -40px, rgba(59, 130, 246, 0.15), transparent 65%),
+        rgba(15, 23, 42, 0.62);
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+      padding: var(--preview-gutter);
+    }
+    .preview-fit {
+      flex: 1;
+      min-height: 0;
+      width: 100%;
+      container-type: size;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .preview-frame {
+      aspect-ratio: 1440 / 2960;
+      width: min(var(--preview-screen-width), 100cqw, calc(100cqh * 1440 / 2960));
+      max-height: 100cqh;
+      background: #ffffff;
+      border: 1px solid rgba(148, 163, 184, 0.28);
+      border-radius: 10px;
+      box-shadow: 0 12px 32px rgba(2, 6, 23, 0.4);
+      overflow-y: auto;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      flex-shrink: 0;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+    footer {
+      height: 52px;
+      background: rgba(15, 23, 42, 0.86);
+      border-top: 1px solid rgba(148, 163, 184, 0.18);
+      backdrop-filter: blur(10px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      flex-shrink: 0;
+    }
+    .btn {
+      border: none;
+      padding: 8px 24px;
+      border-radius: 999px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 13px;
+      transition: background-color 220ms ease, box-shadow 220ms ease, transform 220ms ease;
+    }
+    .btn:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.5);
+    }
+    .btn-primary {
+      background: #22c55e;
+      color: #052e16;
+      box-shadow: 0 8px 18px rgba(34, 197, 94, 0.3);
+    }
+    .btn-primary:hover {
+      background: #4ade80;
+      transform: translateY(-1px);
+    }
+    footer .hint {
+      font-size: 11px;
+      color: #94a3b8;
+    }
+    #loadingOverlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(26, 27, 38, 0.9);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid #292e42;
+      border-top-color: #bb9af7;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 15px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .empty-state {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #565f89;
+      font-size: 14px;
+      text-align: center;
+      padding: 20px;
+    }
+    @media (max-width: 1280px) {
+      main {
+        flex-direction: column;
+      }
+      .panel-source,
+      .panel-edit {
+        flex: 1 1 auto;
+        min-height: 320px;
+      }
+      #previewPanel {
+        flex: 0 0 auto;
+        width: 100%;
+        min-width: 0;
+        max-width: var(--preview-panel-width);
+        align-self: center;
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .btn {
+        transition: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div id="loadingOverlay">
+  <div class="spinner"></div>
+  <div id="loadingText">正在初始化 Skia (CanvasKit)...</div>
+</div>
+
+<header>
+  <strong class="brand">Live Banner Tool</strong>
+  <span class="status" id="statusText">等待输入 JSON...</span>
+</header>
+
+<main>
+  <div class="panel panel-source">
+    <div class="panel-header">
+      <div class="panel-header-row">
+        <div class="panel-header-left">
+          <span style="color:#cbd5e1;font-weight:600;">完整 JSON</span>
+          <span>— s8 + ipad + normal</span>
+        </div>
+        <button class="copy-icon-btn" onclick="copyFullJson()" title="复制完整 JSON" aria-label="复制完整 JSON">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="9" y="9" width="10" height="10" rx="2"></rect>
+            <rect x="5" y="5" width="10" height="10" rx="2"></rect>
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div class="panel-note">源数据区：用于粘贴与查看完整配置</div>
+    <textarea id="fullJsonEditor" class="json-textarea" placeholder="粘贴完整 banner.json（含 normal、ipad、s8）..." spellcheck="false"></textarea>
+  </div>
+  <div class="panel panel-edit">
+    <div class="panel-header">
+      <div class="panel-header-row">
+        <div class="panel-header-left">
+          <span style="color:#dcfce7;font-weight:700;">S8 编辑</span>
+          <span>— 生效编辑区</span>
+        </div>
+        <span class="effective-badge">Effective</span>
+      </div>
+    </div>
+    <div class="panel-note">仅中间编辑框的修改会作为有效内容参与更新</div>
+    <textarea id="s8Editor" class="json-textarea" placeholder="从左侧解析的 s8 数组，在此编辑..." spellcheck="false"></textarea>
+  </div>
+  <div class="panel" id="previewPanel">
+    <div class="panel-header">预览 <span>— S8 · 1440×2960 / 360×740 dp</span></div>
+    <div id="previewContainer">
+      <div class="preview-fit">
+        <div class="preview-frame" id="deviceScreen">
+          <div id="emptyPlaceholder" class="empty-state">请在中间栏编辑 S8 JSON 以预览</div>
+          <canvas id="skCanvas" style="display:none"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <button class="btn btn-primary" id="updateBtn" onclick="applyUpdate()">Update</button>
+  <span class="hint">应用当前编辑并更新配置</span>
+</footer>
+
+<script src="https://unpkg.com/canvaskit-wasm@0.39.1/bin/full/canvaskit.js"></script>
+
+<script>
+  let CK = null;
+  let fontMgr = null;
+  const fontCache = new Map();
+  const S8_WIDTH = 1440;
+  const DISPLAY_WIDTH = 360;
+  const SCALE = DISPLAY_WIDTH / S8_WIDTH;
+  const SCALE_TO_NORMAL = 0.8;
+
+  const canvas = document.getElementById('skCanvas');
+  const fullJsonEditor = document.getElementById('fullJsonEditor');
+  const s8Editor = document.getElementById('s8Editor');
+  const statusText = document.getElementById('statusText');
+  const emptyPlaceholder = document.getElementById('emptyPlaceholder');
+  const deviceScreen = document.getElementById('deviceScreen');
+
+  let syncingFromFull = false;
+
+  function scaleInt(value) {
+    return Math.round(Number(value) * SCALE_TO_NORMAL);
+  }
+
+  // 从字体文件名解析出 family 名、weight 数值、slant 数值
+  // 例: "Montserrat-Bold.ttf"      → { family: 'Montserrat',      weight: 700, slant: 0 }
+  //     "RobotoCondensed-BoldItalic.ttf" → { family: 'RobotoCondensed', weight: 700, slant: 1 }
+  //     "Montserrat-SemiBold.otf"  → { family: 'Montserrat',      weight: 600, slant: 0 }
+  function parseFontName(filename) {
+    if (!filename) return { family: 'Roboto', weight: 400, slant: 0 };
+    const base = filename.replace(/\.(ttf|otf)$/i, '');
+    const dash = base.lastIndexOf('-');
+    if (dash === -1) return { family: base, weight: 400, slant: 0 };
+
+    const family = base.substring(0, dash).replace(/\s+/g, '');
+    const suffix = base.substring(dash + 1);
+
+    // slant: 含 Italic 则为斜体 (1=Italic), 否则正体 (0=Upright)
+    const isItalic = /italic/i.test(suffix);
+    const weightKey = suffix.replace(/italic/i, '').trim().toLowerCase();
+
+    const weightMap = {
+      'thin':        100,
+      'extralight':  200,
+      'light':       300,
+      'regular':     400,
+      '':            400,
+      'medium':      500,
+      'semibold':    600,
+      'bold':        700,
+      'extrabold':   800,
+      'extbold':     800,
+      'black':       900,
+    };
+
+    return {
+      family,
+      weight: weightMap[weightKey] ?? 400,
+      slant: isItalic ? 1 : 0,
+    };
+  }
+
+  function deepClone(obj) {
+    return JSON.parse(JSON.stringify(obj));
+  }
+
+  function s8ToNormal(s8Items) {
+    return s8Items.map((item) => {
+      const out = deepClone(item);
+      if (out.top_margin != null) {
+        out.top_margin = scaleInt(out.top_margin);
+      }
+      if (out.type === 'text') {
+        if (out.size != null) out.size = scaleInt(out.size);
+        if (out.line_height != null) out.line_height = scaleInt(out.line_height);
+      } else if (out.type === 'line') {
+        if (out.width != null) out.width = scaleInt(out.width);
+      }
+      return out;
+    });
+  }
+
+  function parseS8Editor() {
+    const raw = s8Editor.value.trim();
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed;
+    if (parsed && Array.isArray(parsed.s8)) return parsed.s8;
+    throw new Error('S8 须为 JSON 数组');
+  }
+
+  function syncS8FromFull() {
+    const raw = fullJsonEditor.value.trim();
+    if (!raw) return;
+    try {
+      const data = JSON.parse(raw);
+      if (!Array.isArray(data.s8)) return;
+      syncingFromFull = true;
+      s8Editor.value = JSON.stringify(data.s8, null, 2);
+      syncingFromFull = false;
+      render();
+    } catch (_) {
+      /* 左侧 JSON 未就绪时不覆盖中间栏 */
+    }
+  }
+
+  function applyUpdate() {
+    const fullRaw = fullJsonEditor.value.trim();
+    if (!fullRaw) {
+      setStatus('请先在左侧粘贴完整 JSON', true);
+      return;
+    }
+
+    let fullData;
+    let s8Items;
+    try {
+      fullData = JSON.parse(fullRaw);
+      s8Items = parseS8Editor();
+      if (!s8Items) {
+        setStatus('中间栏 S8 为空', true);
+        return;
+      }
+    } catch (e) {
+      setStatus('JSON 解析失败: ' + e.message, true);
+      return;
+    }
+
+    fullData.s8 = deepClone(s8Items);
+    fullData.ipad = deepClone(s8Items);
+    fullData.normal = s8ToNormal(s8Items);
+
+    fullJsonEditor.value = JSON.stringify(fullData, null, 2);
+    setStatus('更新成功', false);
+  }
+
+  async function copyFullJson() {
+    const text = fullJsonEditor.value;
+    if (!text.trim()) {
+      setStatus('当前无可复制内容', true);
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      setStatus('已复制完整 JSON', false);
+    } catch (_) {
+      fullJsonEditor.select();
+      document.execCommand('copy');
+      window.getSelection()?.removeAllRanges();
+      setStatus('已复制完整 JSON', false);
+    }
+  }
+
+  function setStatus(msg, isError) {
+    statusText.textContent = msg;
+    statusText.style.color = isError ? '#f7768e' : '#9ece6a';
+  }
+
+  async function init() {
+    try {
+      CK = await CanvasKitInit({
+        locateFile: (file) => `https://unpkg.com/canvaskit-wasm@0.39.1/bin/full/${file}`
+      });
+      document.getElementById('loadingOverlay').style.display = 'none';
+      fullJsonEditor.addEventListener('input', debounce(() => {
+        syncS8FromFull();
+      }, 300));
+      s8Editor.addEventListener('input', debounce(() => {
+        if (!syncingFromFull) render();
+      }, 300));
+    } catch (e) {
+      console.error(e);
+      document.getElementById('loadingText').textContent = '初始化失败: ' + e.message;
+    }
+  }
+
+  async function getFont(name) {
+    if (!name) return null;
+    if (fontCache.has(name)) return fontCache.get(name);
+    try {
+      const resp = await fetch(`fonts/${name}`);
+      if (!resp.ok) throw new Error('Font not found');
+      const buffer = await resp.arrayBuffer();
+      fontCache.set(name, buffer);
+      return buffer;
+    } catch (e) {
+      console.warn(`无法加载字体: ${name}`, e);
+      return null;
+    }
+  }
+
+  async function render() {
+    if (!CK) return;
+
+    const rawValue = s8Editor.value.trim();
+    if (!rawValue) {
+      canvas.style.display = 'none';
+      emptyPlaceholder.style.display = 'flex';
+      statusText.textContent = '等待 S8 JSON...';
+      statusText.style.color = '#565f89';
+      deviceScreen.style.backgroundColor = '#f0f0f0';
+      return;
+    }
+
+    let items;
+    let bgColor = '#ffffff';
+    try {
+      const parsed = JSON.parse(rawValue);
+      if (Array.isArray(parsed)) {
+        items = parsed;
+      } else {
+        items = parsed.s8 || parsed.normal || [];
+        if (parsed.background?.color) bgColor = parsed.background.color;
+      }
+      const fullRaw = fullJsonEditor.value.trim();
+      if (fullRaw) {
+        try {
+          const full = JSON.parse(fullRaw);
+          if (full.background?.color) bgColor = full.background.color;
+        } catch (_) {}
+      }
+    } catch (e) {
+      setStatus('S8 JSON 语法错误', true);
+      return;
+    }
+
+    const data = { s8: items, background: { color: bgColor } };
+
+    canvas.style.display = 'block';
+    emptyPlaceholder.style.display = 'none';
+    statusText.textContent = '正在渲染...';
+    statusText.style.color = '#565f89';
+
+    deviceScreen.style.backgroundColor = bgColor;
+
+    const fontNames = new Set();
+    items.forEach((item) => {
+      if (item.font) fontNames.add(item.font);
+      if (item.parts) item.parts.forEach((p) => { if (p.font) fontNames.add(p.font); });
+    });
+
+    const fontBuffers = await Promise.all(Array.from(fontNames).map(getFont));
+    const validBuffers = fontBuffers.filter((b) => b !== null);
+
+    if (fontMgr) fontMgr.delete();
+    fontMgr = CK.FontMgr.FromData(...validBuffers);
+
+    // Extract topPadding / bottomPadding from first / last items
+    let topPadding = 0;
+    let bottomPadding = 0;
+    if (items.length > 0) {
+      topPadding = (Number(items[0].top_padding) || 0) * SCALE;
+      bottomPadding = (Number(items[items.length - 1].bottom_padding) || 0) * SCALE;
+    }
+    let bannerHeight = 0;
+
+    // Pre-pass: build all paragraphs and measure actual heights
+    const preBuilt = items.map((item) => {
+      if (item.type === 'line') {
+        return { kind: 'line', item };
+      }
+      const fontSize = (Number(item.size) || 0) * SCALE;
+      const color = CK.parseColorString(item.color || '#000000');
+      const spacing = Number(item.spacing) || 0;
+      const lineH = (Number(item.line_height) || 0) * SCALE;
+      const maxLines = Number(item.lines) || 0;
+      const { family: itemFamily, weight: itemWeight, slant: itemSlant } = parseFontName(item.font);
+
+      // strutStyle.leading (em) maps Android setLineSpacing(extra, 1f) per-line spacing
+      const strutStyle = (lineH > 0 && fontSize > 0) ? {
+        strutEnabled: true,
+        forceStrutHeight: false,
+        fontSize,
+        fontFamilies: [itemFamily, 'Roboto', 'sans-serif'],
+        fontStyle: { weight: itemWeight, slant: itemSlant },
+        leading: lineH / fontSize,
+      } : null;
+
+      // parts with align:"top" get Android dp2px(3f) topMargin; approximate by shifting whole paragraph
+      const topAlignOffset = Array.isArray(item.parts) && item.parts.some(p => p && p.align === 'top')
+        ? 3 * SCALE : 0;
+
+      const paraStyle = new CK.ParagraphStyle({
+        textStyle: {
+          color,
+          fontSize,
+          fontFamilies: [itemFamily, 'Roboto', 'sans-serif'],
+          fontStyle: { weight: itemWeight, slant: itemSlant },
+          letterSpacing: spacing * fontSize,
+        },
+        textAlign: CK.TextAlign.Center,
+        ...(maxLines > 0 ? { maxLines } : {}),
+        ...(strutStyle ? { strutStyle } : {}),
+      });
+
+      const builder = CK.ParagraphBuilder.Make(paraStyle, fontMgr);
+      if (item.parts && item.parts.length > 0) {
+        item.parts.forEach((p) => {
+          const range = p.text_range || {};
+          const sub = (item.content || '').substring(range.start || 0, (range.start || 0) + (range.length || 0));
+          const pSize = (Number(p.size) || Number(item.size) || 0) * SCALE;
+          const { family: pFamily, weight: pWeight, slant: pSlant } = parseFontName(p.font || item.font);
+          builder.pushStyle(new CK.TextStyle({
+            color: CK.parseColorString(p.color || item.color || '#000000'),
+            fontSize: pSize,
+            fontFamilies: [pFamily, 'Roboto', 'sans-serif'],
+            fontStyle: { weight: pWeight, slant: pSlant },
+            letterSpacing: (Number(p.spacing ?? item.spacing) || 0) * pSize,
+          }));
+          builder.addText(sub);
+          builder.pop();
+        });
+      } else {
+        builder.pushStyle(new CK.TextStyle({
+          color,
+          fontSize,
+          fontFamilies: [itemFamily, 'Roboto', 'sans-serif'],
+          fontStyle: { weight: itemWeight, slant: itemSlant },
+          letterSpacing: spacing * fontSize,
+        }));
+        builder.addText(item.content || '');
+        builder.pop();
+      }
+
+      const para = builder.build();
+      para.layout(DISPLAY_WIDTH);
+      builder.delete();
+      return { kind: 'text', item, para, topAlignOffset };
+    });
+
+    // Recalculate bannerHeight using actual paragraph heights
+    bannerHeight = topPadding + bottomPadding;
+    preBuilt.forEach((entry, idx) => {
+      const isFirst = idx === 0;
+      const isLast = idx === preBuilt.length - 1;
+      const topMargin = Number(entry.item.top_margin) || 0;
+      bannerHeight += isFirst ? topMargin * SCALE : topMargin;
+      if (entry.kind === 'line') {
+        bannerHeight += Math.max(1, parseFloat(entry.item.height) || 1);
+      } else {
+        bannerHeight += entry.para.getHeight();
+      }
+      const bottomMargin = Number(entry.item.bottom_margin) || 0;
+      bannerHeight += isLast ? bottomMargin * SCALE : bottomMargin;
+    });
+
+    canvas.width = DISPLAY_WIDTH * window.devicePixelRatio;
+    canvas.height = bannerHeight * window.devicePixelRatio;
+    canvas.style.width = '100%';
+    canvas.style.height = 'auto';
+
+    const surface = CK.MakeCanvasSurface(canvas);
+    surface.drawOnce((skCanvas) => {
+      skCanvas.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+      const bg = data.background?.color || '#ffffff';
+      const paint = new CK.Paint();
+      paint.setColor(CK.parseColorString(bg));
+      skCanvas.drawRect(CK.LTRBRect(0, 0, DISPLAY_WIDTH, bannerHeight), paint);
+
+      let currentY = topPadding;
+
+      preBuilt.forEach((entry, idx) => {
+        const isFirst = idx === 0;
+        const isLast = idx === preBuilt.length - 1;
+        const topMargin = Number(entry.item.top_margin) || 0;
+        currentY += isFirst ? topMargin * SCALE : topMargin;
+
+        if (entry.kind === 'line') {
+          const w = (Number(entry.item.width) || 0) * SCALE;
+          const h = Math.max(1, parseFloat(entry.item.height) || 1);
+          const x = (DISPLAY_WIDTH - w) / 2;
+          paint.setColor(CK.parseColorString(entry.item.color || '#000000'));
+          skCanvas.drawRect(CK.LTRBRect(x, currentY, x + w, currentY + h), paint);
+          currentY += h;
+        } else {
+          skCanvas.drawParagraph(entry.para, 0, currentY + (entry.topAlignOffset || 0));
+          currentY += entry.para.getHeight();
+          entry.para.delete();
+        }
+        const bottomMargin = Number(entry.item.bottom_margin) || 0;
+        currentY += isLast ? bottomMargin * SCALE : bottomMargin;
+      });
+      paint.delete();
+    });
+
+    setStatus('渲染完成', false);
+  }
+
+  function debounce(fn, ms) {
+    let timeout;
+    return (...args) => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => fn.apply(this, args), ms);
+    };
+  }
+
+  init();
+</script>
+
+</body>
+</html>

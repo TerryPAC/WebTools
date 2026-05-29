@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebTools - 在线工具集</title>
+    <title>WebTools — Browser-Based Utilities</title>
     <style>
         :root {
             --primary-color: #4a90e2;
@@ -81,6 +81,13 @@
             color: var(--text-secondary);
         }
 
+        .card code {
+            font-size: 0.9em;
+            background: #f0f4f8;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
         .btn {
             display: inline-block;
             padding: 10px 20px;
@@ -95,21 +102,12 @@
             opacity: 0.9;
         }
 
-        .card.disabled {
-            opacity: 0.7;
-            cursor: not-allowed;
-            pointer-events: none;
-        }
-
-        .card.disabled .btn {
-            background-color: #ccc;
-        }
-
         .badge {
             display: inline-block;
             padding: 4px 8px;
             font-size: 0.8rem;
-            background: #eee;
+            background: #e8f4fd;
+            color: #2a6cb0;
             border-radius: 4px;
             margin-bottom: 10px;
         }
@@ -125,28 +123,26 @@
 <body>
     <header>
         <h1>WebTools</h1>
-        <p class="subtitle">纯前端、隐私安全的在线工具集</p>
+        <p class="subtitle">Privacy-first utilities that run entirely in your browser</p>
     </header>
 
     <div class="container">
-        <!-- IconTool -->
         <a href="./IconTool/" class="card">
             <div>
-                <span class="badge">已上线</span>
+                <span class="badge">Available</span>
                 <h2>IconTool</h2>
-                <p>图片取色与颜色替换工具。支持容忍度调节、局部区域限定，纯前端处理，保护隐私。</p>
+                <p>Pick colors from images and replace them with a new color. Adjust tolerance, limit regions with rectangles, and download results — no uploads.</p>
             </div>
-            <span class="btn">立即使用</span>
+            <span class="btn">Open IconTool</span>
         </a>
 
-        <!-- BannerTool -->
-        <a href="./BannerTool/" class="card disabled">
+        <a href="./BannerTool/" class="card">
             <div>
-                <span class="badge">开发中</span>
+                <span class="badge">Available</span>
                 <h2>BannerTool</h2>
-                <p>网页横幅（Banner）制作工具。快速生成美观的网页头图和社交媒体封面。</p>
+                <p>Live Skia banner preview for Galaxy S8 layouts. Edit <code>banner.json</code> (normal, iPad, S8) and see CanvasKit rendering update in real time.</p>
             </div>
-            <span class="btn">敬请期待</span>
+            <span class="btn">Open BannerTool</span>
         </a>
     </div>
 
