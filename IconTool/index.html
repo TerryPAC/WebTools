@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>图片取色与颜色替换</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="header">
+        <div class="header-icon">
+          <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="44" height="44" rx="11" fill="url(#appGrad)"/>
+            <path d="M13 31L20 24M20 24L22 19.5L27 17L29 13L32 16L27 17L25 22L20 24Z"
+              stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="15.5" cy="28.5" r="3" fill="white" opacity="0.9"/>
+            <defs>
+              <linearGradient id="appGrad" x1="0" y1="0" x2="44" y2="44">
+                <stop offset="0%" stop-color="#007AFF"/>
+                <stop offset="100%" stop-color="#5856D6"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <div class="header-text">
+          <h1>图片取色与颜色替换</h1>
+          <p class="subtitle">点击图片取色，调整容忍度预览选区，输入新颜色后确认替换</p>
+        </div>
+      </header>
+
+      <main class="main">
+        <div class="presets-bar">
+          <button type="button" class="preset-btn" data-color="#67c9ca" style="background-color: #67c9ca;" title="FP">FP</button>
+          <button type="button" class="preset-btn" data-color="#1453a3" style="background-color: #1453a3;" title="PB">PB</button>
+          <button type="button" class="preset-btn" data-color="#f47169" style="background-color: #f47169;" title="PT">PT</button>
+          <button type="button" class="preset-btn" data-color="#36696a" style="background-color: #36696a;" title="FPA">FPA</button>
+          <button type="button" class="preset-btn" data-color="#df5455" style="background-color: #df5455;" title="INK">INK</button>
+          <button type="button" class="preset-btn" data-color="#fab720" style="background-color: #fab720;" title="FC">FC</button>
+        </div>
+
+        <aside class="panel">
+
+          <!-- Step 1: 上传 -->
+          <section class="card">
+            <div class="card-header">
+              <span class="step-badge">1</span>
+              <h2>上传图片</h2>
+            </div>
+            <label class="upload-zone" for="fileInput" id="uploadZone">
+              <input type="file" id="fileInput" accept="image/*" multiple hidden />
+              <div class="upload-icon-wrap">
+                <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M14 18V9M14 9L10.5 12.5M14 9L17.5 12.5"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M22 18.5C23.66 17.42 24.5 15.56 24.5 14C24.5 10.41 21.59 7.5 18 7.5C17.75 7.5 17.51 7.51 17.27 7.54C16.37 4.79 13.8 2.8 10.75 2.8C7.05 2.8 4.07 5.78 4.07 9.48V9.5C1.99 10.04 0.5 11.95 0.5 14.2C0.5 16.79 2.62 18.88 5.21 18.88"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <div class="upload-label-wrap">
+                <span class="upload-text">点击或拖拽上传图片（可多选）</span>
+                <span class="upload-hint" id="uploadHint">支持多张 · PNG · JPG · WebP</span>
+              </div>
+            </label>
+          </section>
+
+          <!-- Step 2: 限定范围 -->
+          <section class="card">
+            <div class="card-header">
+              <span class="step-badge">2</span>
+              <h2>限定范围 <span class="optional-tag">可选</span></h2>
+            </div>
+            <p class="hint">先点击右侧某张图选中，再为其绘制矩形框（可多次）；未框选的图片默认整张图范围</p>
+            <div class="btn-group">
+              <button type="button" class="btn btn-secondary" id="btnDrawRect">
+                <svg viewBox="0 0 16 16" fill="none">
+                  <rect x="2.5" y="2.5" width="11" height="11" rx="1.5"
+                    stroke="currentColor" stroke-width="1.5" stroke-dasharray="3 2.5"/>
+                </svg>
+                绘制矩形框
+              </button>
+              <button type="button" class="btn btn-ghost" id="btnClearRect" disabled>
+                清除
+              </button>
+            </div>
+            <p class="status" id="rectStatus" aria-live="polite"></p>
+          </section>
+
+          <!-- Step 3: 取色 -->
+          <section class="card">
+            <div class="card-header">
+              <span class="step-badge">3</span>
+              <h2>取色</h2>
+              <button type="button" class="btn-cancel" id="btnCancelPick" title="清除取色与选区" style="display: none;">
+                <svg viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" style="width: 10px; height: 10px;">
+                  <path d="M3.5 3.5L10.5 10.5M10.5 3.5L3.5 10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+                取消
+              </button>
+            </div>
+            <div class="picked-row">
+              <span class="swatch" id="pickedSwatch" aria-hidden="true"></span>
+              <div class="picked-info">
+                <div class="picked-hex" id="pickedHex">未取色</div>
+                <div class="picked-rgb" id="pickedRgb">点击图片选取颜色</div>
+              </div>
+            </div>
+            <div class="slider-wrap">
+              <label class="slider-label" for="tolerance">
+                <span>容忍度</span>
+                <span class="tolerance-badge" id="toleranceValue">10</span>
+              </label>
+              <input type="range" id="tolerance" min="0" max="100" value="10" />
+            </div>
+            <p class="hint" style="margin-top: 0.4rem;">色距越大，选中的相近颜色越多</p>
+            <div class="stats-row">
+              <svg class="stats-icon" viewBox="0 0 14 14" fill="none">
+                <circle cx="7" cy="7" r="6" stroke="currentColor" stroke-width="1.3"/>
+                <circle cx="7" cy="7" r="2.5" fill="currentColor"/>
+              </svg>
+              <p class="stats" id="selectionStats">已选中像素：—</p>
+            </div>
+          </section>
+
+          <!-- Step 4: 替换颜色 -->
+          <section class="card">
+            <div class="card-header">
+              <span class="step-badge">4</span>
+              <h2>替换为新颜色</h2>
+            </div>
+            <div class="color-row">
+              <label class="sr-only" for="replaceColor">颜色选择</label>
+              <div class="color-picker-wrap" title="点击选取颜色">
+                <input type="color" id="replaceColor" value="#00aaff" />
+              </div>
+              <div class="color-inputs">
+                <div class="text-input-row">
+                  <span class="input-prefix">HEX</span>
+                    <input type="text" id="hexTextInput" placeholder="#00AAFF" maxlength="7" spellcheck="false" autocomplete="off" />
+                </div>
+                <div class="rgb-grid">
+                  <label>
+                    <span class="rgb-label" style="color:#ff3b30">R</span>
+                    <input type="number" id="rInput" min="0" max="255" value="0" />
+                  </label>
+                  <label>
+                    <span class="rgb-label" style="color:#34c759">G</span>
+                    <input type="number" id="gInput" min="0" max="255" value="170" />
+                  </label>
+                  <label>
+                    <span class="rgb-label" style="color:#007AFF">B</span>
+                    <input type="number" id="bInput" min="0" max="255" value="255" />
+                  </label>
+                </div>
+              </div>
+            </div>
+            <button type="button" class="btn btn-primary" id="btnReplace" disabled>
+              确认替换
+            </button>
+          </section>
+
+          <!-- Step 5: 下载 -->
+          <section class="card card-action">
+            <button type="button" class="btn btn-download" id="btnDownload" disabled>
+              <svg viewBox="0 0 20 20" fill="none">
+                <path d="M10 3v9.5M10 12.5l-3-3M10 12.5l3-3"
+                  stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M3.5 14v1.5A1.5 1.5 0 005 17h10a1.5 1.5 0 001.5-1.5V14"
+                  stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+              </svg>
+              <span id="btnDownloadLabel">下载图片</span>
+            </button>
+          </section>
+
+        </aside>
+
+        <section class="preview">
+          <div class="preview-toolbar">
+            <div class="mode-pill" id="modePill">
+              <span class="mode-dot"></span>
+              <span id="modeHint" class="mode-hint">请在图片上点击取色</span>
+            </div>
+          </div>
+          <div class="canvas-wrap images-grid-wrap" id="imagesGridWrap">
+            <div class="images-grid" id="imagesGrid">
+              <div class="canvas-placeholder" id="globalPlaceholder">
+                <svg viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="3" y="3" width="50" height="50" rx="8" stroke="#d1d1d6" stroke-width="1.5"/>
+                  <path d="M9 43l11-15 8 10 6-8 13 13H9z" fill="#e5e5ea" stroke="#d1d1d6"
+                    stroke-width="1.5" stroke-linejoin="round"/>
+                  <circle cx="39" cy="18" r="5" fill="#e5e5ea" stroke="#d1d1d6" stroke-width="1.5"/>
+                </svg>
+                <p>上传图片后在此平铺预览</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

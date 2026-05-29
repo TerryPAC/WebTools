@@ -34,4 +34,4 @@
 项目已通过 GitHub Pages 托管，可通过以下地址访问：
 [https://terrypac.github.io/IconTool/](https://terrypac.github.io/IconTool/)
 
-> **注意**：由于 GitHub 仓库名仍为 `IconTool`，访问路径包含 `/IconTool/`。如果未来重命名仓库为 `WebTools`，路径将变为 `https://terrypac.github.io/WebTools/`。
+
