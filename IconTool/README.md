@@ -1,37 +1,43 @@
-# WebTools - 纯前端在线工具集
+# IconTool - Image Color Picker & Replacer
 
-这是一个纯前端开发的在线工具集合，所有处理均在浏览器本地完成，不上传服务器，确保数据隐私安全。
+A pure frontend image processing tool that allows users to upload images, pick specific colors, and replace them with new colors. Supports regional limits and tolerance adjustments.
 
-## 工具列表
+## Features
 
-### 1. [IconTool](./IconTool/) - 图片取色与颜色替换
-支持上传图片、选取特定颜色并进行替换。提供容忍度调节和局部区域限定功能。
+- **Pure Frontend**: All operations are done in the browser, no server upload, ensuring privacy.
+- **Regional Replacement**: Supports limiting the processing area by drawing a rectangle.
+- **Tolerance Adjustment**: Adjust color matching tolerance to handle gradients or similar colors easily.
+- **Real-time Preview**: Highlights pixels to be replaced in real-time when adjusting tolerance.
+- **Multi-format Support**: Supports common formats like PNG, JPG, WebP, GIF, etc.
 
-### 2. [BannerTool](./BannerTool/) - 网页横幅制作 (开发中)
-用于快速生成网页 Banner、社交媒体封面等。
+## Workflow
 
----
+1. **Upload Image**: Click or drag an image to the upload area.
+2. **Define Area (Optional)**: Click "Draw Rectangle" and drag on the preview if you only want to modify part of the image.
+3. **Pick Color**: Click the color you want to replace on the image.
+4. **Adjust Tolerance**: Drag the slider and observe the pink highlight to ensure all target pixels are selected.
+5. **Set New Color**: Use the color picker or enter RGB values manually.
+6. **Confirm Replacement**: Click "Confirm Replace" to apply changes.
+7. **Download**: Click "Download Modified Image" to save the result.
 
-## 项目结构
+## Flowchart
 
+```mermaid
+flowchart TD
+    A([Upload Image]) --> B[Define Area - Optional]
+    B --> C[Pick Color & Adjust Tolerance]
+    C --> D[Replace with New Color]
+    D --> E{Continue Editing?}
+    E -- Yes --> C
+    E -- No --> F([Download Result])
 ```
-/ (root)
-├── index.html          # 导航首页
-├── IconTool/           # 图片取色工具
-│   ├── index.html
-│   ├── app.js
-│   └── style.css
-└── BannerTool/         # 横幅制作工具 (待添加)
-```
 
-## 技术栈
+## Tech Stack
 
-- HTML5 / CSS3 / Vanilla JavaScript
-- Canvas API
+- HTML5 Canvas
+- CSS3 (Flexbox/Grid/Variables)
+- Vanilla JavaScript (ES6+)
 
-## 部署
+## Deployment
 
-项目已通过 GitHub Pages 托管，可通过以下地址访问：
-[https://terrypac.github.io/IconTool/](https://terrypac.github.io/IconTool/)
-
-
+As a pure static project, you can run it by opening `index.html` in a browser or deploy it using any static file server (e.g., Live Server, nginx, GitHub Pages).
